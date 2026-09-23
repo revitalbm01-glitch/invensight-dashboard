@@ -1,7 +1,6 @@
 # InvenSight — מערכת BI לניהול מלאי ולוגיסטיקה
 
-> 🔗 **דמו חי (GitHub Pages):** _הוסיפו כאן קישור לאחר הפריסה, למשל:_
-> `https://<your-github-username>.github.io/<repo-name>/`
+> 🔗 **דמו חי (GitHub Pages):** [revitalbm01-glitch.github.io/invensight-dashboard](https://revitalbm01-glitch.github.io/invensight-dashboard/)
 
 ## תיאור
 
