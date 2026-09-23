@@ -77,8 +77,11 @@
 | `id` | string | מזהה ספק |
 | `name` | string | שם ספק |
 | `avgLeadTimeDays` | number | זמן אספקה ממוצע (ימים) |
-| `otifPercent` | number | אחוז אספקה בזמן ובכמות |
-| `rating` | 'excellent'\|'good'\|'warning'\|'critical' | נגזר מדירוג ביצועים |
+| `otifPercent` | number | אחוז אספקה בזמן ובכמות — נגזר בפועל מכלל הזמנות הרכש של הספק |
+| `rating` | 'excellent'\|'good'\|'warning'\|'critical' | נגזר מדירוג ביצועים (OTIF + Lead Time) |
+| `orderCount` | number | נגזר: מספר הזמנות הרכש הכולל של הספק |
+| `orderValue` | number | נגזר: שווי כולל של הזמנות הרכש של הספק |
+| `lateOrderCount` | number | נגזר: מספר הזמנות פעילות שבאיחור |
 
 ### 4.3 Purchase Order (הזמנת רכש) — `PurchaseOrder`
 
@@ -86,9 +89,11 @@
 |---|---|---|
 | `poNumber` | string | מספר הזמנת רכש |
 | `sku` | string | פריט מוזמן |
+| `itemName` | string | שם הפריט המוזמן (מוצג ישירות בטבלאות, ללא צורך ב-lookup) |
 | `supplierId` | string | ספק |
 | `warehouse` | string | מחסן יעד |
-| `orderedQty` | number | כמות בהזמנה |
+| `orderedQty` | number | כמות שהוזמנה |
+| `receivedQty` | number | כמות שהתקבלה בפועל (עשויה להיות חלקית) |
 | `unitCost` | number | עלות יחידה בהזמנה |
 | `orderValue` | number | נגזר |
 | `orderDate` | string (ISO) | תאריך הזמנה |
@@ -100,7 +105,10 @@
 
 ### 4.4 Time Series (למגמות)
 
-נגזר מתנועות מלאי היסטוריות: `{ date, totalStockValue, warehouseId? }` ל-12 החודשים האחרונים, לצורך גרפי מגמה.
+שני מבני נתונים נגזרים, ל-12 החודשים האחרונים, לצורך גרפי מגמה:
+
+- **`StockValuePoint`**: `{ date, label, totalStockValue, byWarehouse: Record<string, number> }` — שווי מלאי כולל וגם מפורק לפי מחסן, לכל חודש.
+- **`OrdersTrendPoint`**: `{ date, label, opened, received }` — מספר הזמנות רכש שנפתחו מול שהתקבלו בפועל, לכל חודש.
 
 ### נפח הדאטה המדומה
 - כ-**250 SKUs**, 5 קטגוריות, 4 מחסנים, 12 ספקים.
@@ -133,13 +141,13 @@
 ### 6.1 Executive Dashboard (מסך ראשי)
 - שורת 10 KPI Cards (סעיף 5).
 - גרף מגמת שווי מלאי (12 חודשים).
-- גרף שווי מלאי לפי קטגוריה (Donut/Bar).
+- גרף שווי מלאי לפי קטגוריה (Bar אופקי).
 - טבלת "דורש טיפול מיידי" — Top חריגות (מיזוג של: חוסרים קריטיים + הזמנות באיחור חמורות + ספקים בעייתיים) עם Drill-Down.
 
 ### 6.2 ניתוח מלאי (Inventory Analysis)
-1. שווי מלאי לפי קטגוריה (Bar/Donut)
-2. שווי מלאי לפי מחסן (Bar)
-3. מגמת שווי מלאי לאורך זמן (Line, עם toggle לפי מחסן)
+1. שווי מלאי לפי קטגוריה (Bar אופקי)
+2. שווי מלאי לפי מחסן (Bar אופקי — אותו רכיב עם `groupBy="warehouse"`)
+3. מגמת שווי מלאי לאורך זמן (Area Chart עם גרדיאנט, toggle לפי מחסן → Line מרובה)
 4. Top 10 פריטים לפי שווי מלאי (טבלה + Bar אופקי)
 5. פריטים עם מלאי עודף (טבלה ממוינת)
 6. פריטים בסיכון לחוסר (טבלה: ימים עד אזילה)
@@ -160,6 +168,8 @@
 ---
 
 ## 7. מנוע התראות (Alert Engine) — כללים
+
+כל התראה מסווגת ל-`AlertType` אחד: `BELOW_REORDER` / `OUT_OF_STOCK` / `LATE_ORDER` / `EXCESS_STOCK` / `NO_MOVEMENT` / `HIGH_LEAD_TIME` / `SUPPLIER_OK`.
 
 | כלל | תנאי | חומרה |
 |---|---|---|
@@ -193,14 +203,16 @@
 
 ## 9. עיצוב, UI/UX
 
-- **RTL מלא**, עברית כשפת ממשק ראשית (`dir="rtl"`, פונט תומך עברית).
-- שפה עיצובית של מוצר BI ארגוני: נקי, מרווח, היררכיה ברורה (כותרת → KPI → ניתוח → פירוט), לא "עמוס".
-- **Sidebar ניווט קבוע**: לוגו/שם מערכת, ניווט בין 4 המסכים, מצב Collapse ל-Responsive.
-- פס פילטרים גלובלי עליון, נצמד (sticky).
-- **צבעים פונקציונליים בלבד**: ירוק=תקין, כתום=אזהרה, אדום=חריגה/קריטי, כחול/אפור=ניטרלי/מידע. שאר הממשק בגווני אפור/לבן ניטרליים.
-- Responsive: Desktop (עיקרי, layout מלא), Tablet (KPI-ים נשברים ל-2 טורים), Mobile (Sidebar הופך ל-Drawer, טבלאות הופכות לכרטיסים גלילים).
-- מיקרו-אינטראקציות: Hover states, Loading skeletons, Empty states מעוצבים (לא "No Data" גולמי).
-- כל KPI/גרף עם Tooltip הסברי (אייקון ⓘ).
+- **RTL מלא**, עברית כשפת ממשק ראשית (`dir="rtl"`, פונט Assistant/Heebo).
+- שפה עיצובית של מוצר BI ארגוני **צפוף ומקצועי** (לא "אוורירי") — היררכיה ברורה דרך ניגודיות, צבע וגודל, לא דרך ריווח לבן. כותרת → KPI → ניתוח → פירוט, עם `SectionHeading` (פס צבע + כותרת uppercase קטנה) שמפריד קבוצות תוכן בתוך עמוד ארוך.
+- **Sidebar כהה קבוע**: רקע גרדיאנט כהה (`bg-sidebar-gradient`, navy), לוגו עם badge גרדיאנט מותג, ניווט בין 4 המסכים עם אינדיקציית מסך פעיל (פס צבע + הדגשת רקע), הופך ל-Drawer מתחת ל-`lg` breakpoint (1024px).
+- **Hero KPI Card**: בכל מסך עם שורת KPIs, מדד אחד (הכי חשוב לאותו מסך — שווי מלאי כולל בדשבורד הראשי, OTIF בלוגיסטיקה) מודגש בכרטיס גדול עם רקע גרדיאנט מותג (`bg-brand-gradient`) הפורש 2 עמודות, כדי ליצור נקודת מיקוד ויזואלית ברורה מעל שאר המדדים.
+- פס פילטרים גלובלי עליון, נצמד (sticky), עם badge מספרי שמציג כמה פילטרים פעילים כרגע.
+- **צבעים פונקציונליים בלבד**: ירוק=תקין, כתום=אזהרה, אדום=חריגה/קריטי, כחול=מותג/מידע/הדגשה (כולל גרדיאנט המותג ל-Hero KPI וה-Sidebar). שאר הממשק בגווני אפור/לבן ניטרליים — אין צבעי "קישוט" נוספים.
+- Responsive: Desktop (עיקרי, KPI grid עד 5 טורים), Tablet/Mobile (KPI-ים נשברים ל-2-3 טורים, Sidebar הופך ל-Drawer, טבלאות גוללות אופקית בתוך כרטיס).
+- מיקרו-אינטראקציות: Hover states (הרמה קלה + הצללה), Empty states מעוצבים (לא "No Data" גולמי), נקודת "live" מהבהבת (pulse) לאינדיקציית עדכניות.
+- כל KPI/גרף עם Tooltip הסברי (אייקון ⓘ, כולל גרסת `tone="light"` לרקעים כהים/גרדיאנט).
+- גרפים: קו המגמה הראשי הוא Area Chart עם גרדיאנט מילוי (לא קו שטוח), ולא Donut — עדיפות ל-Bar/Area ברורים על פני Pie/Donut לקריאות טובה יותר.
 
 ---
 
@@ -208,12 +220,12 @@
 
 - **React 18 + TypeScript**, בנייה עם **Vite**.
 - **Tailwind CSS** לעיצוב (עם קונפיגורציית RTL).
-- **Recharts** לגרפים (Line, Bar, Donut/Pie, Pareto).
-- **React Router** לניתוב בין מסכים.
+- **Recharts** לגרפים (Area/Line, Bar, Composed/Pareto) — ללא Donut/Pie, ראו סעיף 9.
+- **React Router** לניתוב בין מסכים — נבחר **`HashRouter`** (לא `BrowserRouter`) כדי לעבוד ללא צורך בקונפיגורציית שרת/404 fallback כלשהי תחת GitHub Pages.
 - ניהול State: React Context + hooks (ללא Redux — לא נדרש בהיקף הזה).
-- דאטה מדומה: מודול generator דטרמיניסטי (`src/data/generateMockData.ts`) שרץ פעם אחת ומייצא דאטה קבוע (לא רנדומלי בכל רינדור).
+- דאטה מדומה: מודולי generator דטרמיניסטיים תחת `src/data/generators/` (items, suppliers, purchaseOrders, timeSeries), מאוחדים ב-`src/data/mockData.ts` שרץ פעם אחת בטעינת המודול ומייצא דאטה קבוע (לא רנדומלי בכל רינדור).
 - **ללא Backend** — הכל Client-side, בר-פריסה כ-Static Site.
-- תמיכה ב-**GitHub Pages** (base path יחסי, HashRouter או BrowserRouter עם 404 fallback).
+- תמיכה ב-**GitHub Pages** — `vite.config.ts` עם `base: './'` (נתיבים יחסיים) + `HashRouter`. **בפועל פרוס**: ראו קישור בראש [README.md](./README.md), עם פריסה אוטומטית דרך `.github/workflows/deploy.yml` בכל push ל-`main`.
 - קוד באנגלית (משתנים/פונקציות), טקסט ממשק בעברית.
 
 ---
@@ -229,9 +241,15 @@ DESHBORD/
 ├── package.json
 ├── vite.config.ts
 ├── tsconfig.json
+├── tsconfig.node.json
 ├── tailwind.config.js
 ├── postcss.config.js
 ├── .gitignore
+├── .github/
+│   └── workflows/
+│       └── deploy.yml            # פריסה אוטומטית ל-GitHub Pages בכל push ל-main
+├── .claude/
+│   └── launch.json                # קונפיגורציית dev server לתצוגה מקדימה
 ├── public/
 │   └── favicon.svg
 └── src/
@@ -286,10 +304,10 @@ DESHBORD/
     │   └── common/
     │       ├── Badge.tsx
     │       ├── Tooltip.tsx
-    │       ├── SeverityIndicator.tsx
     │       ├── EmptyState.tsx
     │       ├── MultiSelect.tsx        # רכיב פילטר רב-בחירה גנרי
-    │       └── ChartCard.tsx          # עטיפה אחידה לכל גרף (כותרת/tooltip/action)
+    │       ├── ChartCard.tsx          # עטיפה אחידה לכל גרף (כותרת/tooltip/action)
+    │       └── SectionHeading.tsx     # כותרת קבוצת תוכן בתוך עמוד (פס צבע + טקסט uppercase)
     └── pages/
         ├── ExecutiveDashboard.tsx
         ├── InventoryAnalysis.tsx
@@ -306,18 +324,20 @@ DESHBORD/
 ## 12. שלבי הפיתוח
 
 1. ✅ **SPEC.md** — מסמך זה.
-2. Scaffold פרויקט (Vite + React + TS + Tailwind + Router), הגדרות RTL.
-3. שכבת Types + Mock Data Generator (items, suppliers, purchase orders, time series).
-4. שכבת Logic (KPI calculations, ABC analysis, Alert engine, filters, formatters).
-5. Layout: Sidebar, Top Filter Bar, PageLayout, רכיבי Common.
-6. Executive Dashboard: KPI Cards + גרפים ראשיים + טבלת "דורש טיפול".
-7. Inventory Analysis: כל 8 תתי-האזורים כולל ABC.
-8. Logistics & Procurement: KPI, גרפים, טבלת ספקים, טבלת הזמנות.
-9. Management Alerts: מנוע ההתראות + תצוגה.
-10. חיבור מלא של Global Filters + Drill-Down בין מסכים.
-11. ליטוש Responsive + נגישות + Tooltips.
-12. `Practice.md` + `README.md`.
-13. הכנה ל-Git/GitHub + הגדרות פריסה ל-GitHub Pages.
+2. ✅ Scaffold פרויקט (Vite + React + TS + Tailwind + Router), הגדרות RTL.
+3. ✅ שכבת Types + Mock Data Generator (items, suppliers, purchase orders, time series).
+4. ✅ שכבת Logic (KPI calculations, ABC analysis, Alert engine, filters, formatters).
+5. ✅ Layout: Sidebar, Top Filter Bar, PageLayout, רכיבי Common.
+6. ✅ Executive Dashboard: KPI Cards + גרפים ראשיים + טבלת "דורש טיפול".
+7. ✅ Inventory Analysis: כל 8 תתי-האזורים כולל ABC.
+8. ✅ Logistics & Procurement: KPI, גרפים, טבלת ספקים, טבלת הזמנות.
+9. ✅ Management Alerts: מנוע ההתראות + תצוגה.
+10. ✅ חיבור מלא של Global Filters + Drill-Down בין מסכים.
+11. ✅ ליטוש Responsive + נגישות + Tooltips.
+12. ✅ `Practice.md` + `README.md`.
+13. ✅ הכנה ל-Git/GitHub + הגדרות פריסה ל-GitHub Pages.
+14. ✅ **סבב עיצוב מחדש** — מראה BI ארגוני צפוף ויוקרתי: Sidebar כהה, Hero KPI Cards, SectionHeading, גרפי Area עם גרדיאנט (ראו סעיף 9 המעודכן).
+15. ✅ **פריסה בפועל** — Repository ציבורי ב-GitHub, פרוס אוטומטית ל-GitHub Pages דרך GitHub Actions בכל push ל-`main` (קישורים ב-README.md).
 
 ---
 
