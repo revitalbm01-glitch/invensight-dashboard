@@ -1,6 +1,8 @@
 # InvenSight — מערכת BI לניהול מלאי ולוגיסטיקה
 
 > 🔗 **דמו חי (GitHub Pages):** [revitalbm01-glitch.github.io/invensight-dashboard](https://revitalbm01-glitch.github.io/invensight-dashboard/)
+>
+> 📦 **מאגר הקוד (GitHub Repository):** [github.com/revitalbm01-glitch/invensight-dashboard](https://github.com/revitalbm01-glitch/invensight-dashboard)
 
 ## תיאור
 
@@ -106,31 +108,21 @@ npm run preview
 
 כאשר תחברו מערכת ERP אמיתית: מחליפים רק את שכבת `src/data`, ושומרים על אותם טיפוסי הנתונים (`InventoryItem`, `Supplier`, `PurchaseOrder` וכו' ב-`src/types/index.ts`) כדי ששאר המערכת תמשיך לעבוד ללא שינוי.
 
-## הוראות לפריסה (GitHub Pages)
+## פריסה (GitHub Pages)
 
-הפרויקט מוגדר מראש לתמיכה ב-GitHub Pages (`base: './'` ב-`vite.config.ts`, וניתוב עם `HashRouter` שלא דורש קונפיגורציית שרת מיוחדת).
+הפרויקט **פרוס בפועל וחי** בכתובת שבראש הקובץ, ומתעדכן **אוטומטית בכל push ל-`main`** דרך GitHub Actions (`.github/workflows/deploy.yml`): כל push מריץ `npm ci && npm run build` ומפרסם את `dist/` ל-GitHub Pages באמצעות `actions/deploy-pages`. אין צורך בפעולה ידנית כלשהי כדי לעדכן את הדמו החי.
 
-### אפשרות א' — עם חבילת `gh-pages` (הכי פשוט)
+### הגדרה חד-פעמית (רלוונטי רק אם עושים Fork/מעתיקים את הריפו)
 
-```bash
-npm run deploy
-```
-
-הפקודה תבנה את הפרויקט ותפרסם את תוכן `dist/` לענף `gh-pages`. לאחר הריצה הראשונה:
+אם משכפלים את הפרויקט לריפו חדש משלכם, יש להפעיל את Pages פעם אחת:
 
 1. גשו להגדרות הריפו ב-GitHub → **Settings → Pages**.
-2. תחת **Build and deployment**, בחרו **Deploy from a branch**.
-3. בחרו את הענף `gh-pages` ותיקיית root (`/`).
-4. שמרו — האתר יהיה זמין בכתובת `https://<username>.github.io/<repo-name>/` תוך מספר דקות.
+2. תחת **Build and deployment → Source**, בחרו **GitHub Actions**.
+3. בצעו `push` ל-`main` — ה-workflow הקיים כבר ידאג לכל השאר.
 
-### אפשרות ב' — GitHub Actions (אוטומטי בכל push)
+**חשוב:** `vite.config.ts` חייב להישאר עם `base: './'` (נתיבים יחסיים) — אחרת הנכסים (JS/CSS) לא ייטענו נכון תחת נתיב תת-הריפו של GitHub Pages.
 
-צרו קובץ `.github/workflows/deploy.yml` עם workflow שמריץ `npm ci && npm run build` ומפרסם את `dist/` באמצעות `actions/deploy-pages`. תחת **Settings → Pages**, בחרו **GitHub Actions** כמקור.
-
-### חשוב
-
-- ודאו ש-`vite.config.ts` נשאר עם `base: './'` — אחרת הנכסים (JS/CSS) לא ייטענו נכון תחת נתיב תת-הריפו של GitHub Pages.
-- לאחר הפריסה, עדכנו את הקישור בראש קובץ זה.
+לפריסה ידנית חד-פעמית (ללא GitHub Actions) קיים גם `npm run deploy`, המשתמש בחבילת `gh-pages` לפרסום `dist/` לענף `gh-pages` — אך זו **אינה** שיטת הפריסה הפעילה כרגע בפרויקט זה (הדמו החי פרוס דרך GitHub Actions כמתואר למעלה).
 
 ## רישיון
 
