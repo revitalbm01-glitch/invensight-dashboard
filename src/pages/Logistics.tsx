@@ -5,6 +5,7 @@ import { KpiGrid } from '../components/kpi/KpiGrid'
 import { OrdersTrendChart } from '../components/charts/OrdersTrendChart'
 import { SupplierPerformanceChart } from '../components/charts/SupplierPerformanceChart'
 import { ChartCard } from '../components/common/ChartCard'
+import { SectionHeading } from '../components/common/SectionHeading'
 import { SuppliersTable } from '../components/tables/SuppliersTable'
 import { PurchaseOrdersTable } from '../components/tables/PurchaseOrdersTable'
 import { useFilteredData } from '../hooks/useFilteredData'
@@ -71,14 +72,18 @@ export default function Logistics() {
 
   return (
     <PageLayout title="לוגיסטיקה ורכש" subtitle="מעקב הזמנות רכש, ביצועי ספקים וזמני אספקה">
-      <div className="space-y-6">
-        <KpiGrid kpis={[...logisticsKpis, leadTimeKpi, receivedKpi]} />
+      <div className="space-y-5">
+        <KpiGrid kpis={[...logisticsKpis, leadTimeKpi, receivedKpi]} featuredId="otif" />
 
-        <OrdersTrendChart data={mockDataset.ordersTrend} />
-
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <SupplierPerformanceChart suppliers={suppliers} metric="leadTime" />
-          <SupplierPerformanceChart suppliers={suppliers} metric="otif" />
+        <div>
+          <SectionHeading title="מגמות רכש וביצועי ספקים" />
+          <div className="space-y-3.5">
+            <OrdersTrendChart data={mockDataset.ordersTrend} />
+            <div className="grid grid-cols-1 gap-3.5 xl:grid-cols-2">
+              <SupplierPerformanceChart suppliers={suppliers} metric="leadTime" />
+              <SupplierPerformanceChart suppliers={suppliers} metric="otif" />
+            </div>
+          </div>
         </div>
 
         <ChartCard title="טבלת ספקים" subtitle={`${suppliers.length} ספקים`} tooltip="ביצועי כלל הספקים: היקף הזמנות, Lead Time, OTIF ואיחורים.">

@@ -2,9 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-html,
-body {
-  height: 100%;
+html {
+  overflow-x: hidden;
 }
 
 body {
@@ -37,15 +36,18 @@ body {
 
 @layer utilities {
   .card {
-    @apply bg-white rounded-xl border border-slate-200 shadow-card;
+    @apply bg-white rounded-2xl border border-slate-200/70 shadow-card;
   }
   .card-hover {
-    @apply transition-shadow hover:shadow-cardHover;
+    @apply transition-all duration-200 hover:shadow-cardHover hover:border-slate-300/70;
   }
   .section-title {
-    @apply text-lg font-bold text-slate-800;
+    @apply text-[15px] font-bold tracking-tight text-slate-800;
   }
   .section-subtitle {
-    @apply text-sm text-slate-500 mt-0.5;
+    @apply text-xs text-slate-500 mt-0.5;
+  }
+  .eyebrow {
+    @apply text-[11px] font-bold uppercase tracking-wider text-brand-600;
   }
 }

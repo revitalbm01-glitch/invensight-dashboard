@@ -28,9 +28,17 @@
   - אדום (`status-bad`) = חריגה/קריטי
   - כחול/אפור (`brand-*`, `slate-*`) = ניטרלי/מידע
   - אל תוסיפו צבעים נוספים ל"קישוט" גרפים — לכל היותר גוונים בתוך אותה משפחה (למשל PALETTE הכחול ב-`CategoryBarChart`).
-- **כל KPI/גרף עם Tooltip הסברי** — השתמשו ברכיב `Tooltip` (`src/components/common/Tooltip.tsx`) או ב-`tooltip` prop של `ChartCard`. אל תשאירו מדד בלי הסבר.
+- **כל KPI/גרף עם Tooltip הסברי** — השתמשו ברכיב `Tooltip` (`src/components/common/Tooltip.tsx`, עם `tone="light"` על רקעים כהים/גרדיאנט) או ב-`tooltip` prop של `ChartCard`. אל תשאירו מדד בלי הסבר.
 - **Empty States מעוצבים** — כל טבלה/רשימה שיכולה להיות ריקה (בעקבות פילטרים) חייבת EmptyState עם כותרת + תת-כותרת, לא "No Data" גולמי. `DataTable` כבר עושה את זה אוטומטית דרך `emptyTitle`/`emptySubtitle`.
 - **Responsive** — בדקו כל מסך חדש ב-3 רוחבים: מובייל (~375px), טאבלט (~768px), דסקטופ (1440px+). ה-Sidebar הופך ל-Drawer מתחת ל-`lg` (ב-Tailwind: `lg:` breakpoint = 1024px).
+
+### 2.1 מערכת העיצוב (Design System) — עודכן בסבב "גימור UI"
+
+- **Sidebar כהה** — `Sidebar.tsx` משתמש ב-`bg-sidebar-gradient` (מוגדר ב-`tailwind.config.js theme.extend.backgroundImage`), לא בצבע שטוח. זו נקודת עוגן ה-"יוקרה" של העיצוב — אל תחזירו אותו ללבן.
+- **Hero KPI Card** — לכל מסך עם `KpiGrid` יש KPI "ראשי" אחד שמודגש: `<KpiGrid featuredId="totalStockValue" />` (בדשבורד) / `featuredId="otif"` (בלוגיסטיקה). ה-KPI המודגש מקבל `featured` ב-`KpiCard.tsx` ומרונדר עם `bg-brand-gradient`, טקסט לבן, וגודל `sm:col-span-2`. **בחרו כל פעם רק KPI אחד** להדגשה — ריבוי כרטיסי hero מבטל את האפקט ההיררכי.
+- **SectionHeading** (`src/components/common/SectionHeading.tsx`) — משמש לחלק עמוד ארוך לקבוצות ויזואליות ברורות (לדוגמה: "מגמות ושווי מלאי", "תובנות ניהוליות", "חריגות מלאי"). השתמשו בו לפני כל קבוצת charts/cards חדשה בעמוד, לא רק בתוך `ChartCard`.
+- **צפיפות** — הפרויקט עבר סבב מכוון של "פחות שטחים לבנים": `ChartCard` הוא `p-4 sm:p-5` (לא יותר), `PageLayout`'s main הוא `py-4 lg:py-5`, שורות טבלה `py-2.5`. אם מוסיפים UI חדש — התאימו לצפיפות הזו, אל תחזרו לריווח הגדול המקורי.
+- **גרפים** — קו המגמה הראשי (`TrendLineChart`) הוא Area Chart עם גרדיאנט מילוי (`<defs><linearGradient>`), לא Line רגיל. שמרו על גובה אחיד סביב 300-310px לכל הגרפים באותו עמוד לעקביות ויזואלית.
 
 ## 3. מבנה הקוד — לפני שמוסיפים קובץ חדש
 
@@ -70,6 +78,18 @@ npm run preview      # מריץ את ה-build הסטטי לבדיקה סופית
 4. **בדקו Responsive** — לפחות ברוחב מובייל אחד.
 5. אם שיניתם נוסחת KPI — עדכנו גם את ה-Tooltip הטקסטואלי שלו וגם את SPEC.md סעיף 5.
 
+### ⚠️ תקלה אמיתית שקרתה כאן — שווה לזכור
+
+**אם שיניתם `tailwind.config.js` (בעיקר `theme.extend.colors`/`backgroundImage`/`boxShadow`) וה-class החדש "לא נדבק" בדפדפן** (הקלאס מופיע ב-`className` אבל `getComputedStyle` מראה `none`/ברירת מחדל) — **זו כמעט תמיד תקלת cache של שרת ה-dev, לא באג בקוד שלכם**. קרה בפועל: `bg-brand-gradient` ו-`bg-sidebar-gradient` הוגדרו נכון ב-config, נכתבו נכון ב-JSX, אבל שרת ה-`vite dev` שרץ ברצף ארוך (עם הרבה HMR) פשוט לא הריץ מחדש את שרשרת ה-PostCSS/Tailwind לאחר עריכת ה-config, כך שה-class יוצא ריק בפועל. ה-`npm run build` תמיד עבד נכון (build מלא = compile נקי) — רק ה-dev server התקוע הראה עיצוב שבור.
+
+**איך מאבחנים:** בקונסול הדפדפן (או `javascript_tool`):
+```js
+getComputedStyle(document.querySelector('.your-element')).backgroundImage
+```
+אם זה `"none"` למרות שה-class קיים ב-`className` — עצרו את שרת ה-dev (`preview_stop`) והפעילו מחדש (`preview_start`). זה פותר את זה תוך שניות.
+
+**לקח נוסף:** אל תסמכו רק על screenshot חזותי כדי "לאמת" שינוי עיצוב — אם משהו נראה מוזר/לא עקבי, אמתו גם דרך `getComputedStyle` או `document.styleSheets`, כי לפעמים גם ה-screenshot עצמו יכול להיראות "תקוע"/לא מעודכן זמנית.
+
 ## 7. אילו חלקים אסור לשנות בלי בדיקה מדוקדקת
 
 - **`src/data/seed.ts`** — שינוי ב-PRNG (הפונקציה `createRng` או ה-seed `20240501`) משנה את **כל** הדאטה המדומה בבת אחת (כל השווי, הסטטוסים, ה-KPIs). אם משנים — צריך לעבור שוב על כל המסכים ולוודא שהתפלגויות עדיין הגיוניות (לא כל הפריטים "מלאי אפס" למשל).
@@ -77,6 +97,7 @@ npm run preview      # מריץ את ה-build הסטטי לבדיקה סופית
 - **`src/logic/abcAnalysis.ts`** — הסף של 80%/95% הוא הגדרת ABC הסטנדרטית. אל תשנו בלי לתעד למה ב-SPEC.md.
 - **`src/context/FilterContext.tsx`** — כל הדשבורד תלוי בזה. שינוי במבנה `GlobalFilters` דורש עדכון בכל `filterItems`/`filterPurchaseOrders`/`TopFilterBar`.
 - **`vite.config.ts` (`base: './'`)** — קריטי לפריסה ב-GitHub Pages. אל תשנו ל-`/` אלא אם עוברים לפריסה בדומיין ראשי.
+- **`tailwind.config.js`** — אחרי כל שינוי כאן, אם ה-dev server כבר רץ הרבה זמן, **הפעילו אותו מחדש** (ראו הערת האזהרה בסעיף 6) לפני שמסיקים שקלאס "לא עובד".
 
 ## 8. איך להוסיף פיצ'ר — תהליך מומלץ
 

@@ -39,12 +39,12 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-100" style={maxHeight ? { maxHeight } : undefined}>
+    <div className="overflow-x-auto rounded-xl border border-slate-200/70" style={maxHeight ? { maxHeight } : undefined}>
       <table className="w-full min-w-[640px] text-sm">
-        <thead className="sticky top-0 bg-slate-50 text-xs font-semibold text-slate-500">
+        <thead className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-sm text-[11px] font-bold uppercase tracking-wide text-slate-500">
           <tr>
             {columns.map((col) => (
-              <th key={col.key} className={`px-3.5 py-2.5 ${ALIGN_CLASSES[col.align ?? 'right']} whitespace-nowrap`}>
+              <th key={col.key} className={`border-b border-slate-200/70 px-3.5 py-2.5 ${ALIGN_CLASSES[col.align ?? 'right']} whitespace-nowrap`}>
                 {col.header}
               </th>
             ))}
@@ -55,7 +55,7 @@ export function DataTable<T>({
             <tr
               key={rowKey(row)}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
-              className={onRowClick ? 'cursor-pointer hover:bg-slate-50' : ''}
+              className={onRowClick ? 'cursor-pointer transition-colors hover:bg-brand-50/40' : ''}
             >
               {columns.map((col) => (
                 <td key={col.key} className={`px-3.5 py-2.5 ${ALIGN_CLASSES[col.align ?? 'right']} ${col.className ?? ''}`}>

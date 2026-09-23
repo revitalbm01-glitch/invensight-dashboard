@@ -38,7 +38,9 @@ export function MultiSelect({ label, options, selected, onChange, width = 'w-44'
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-          selected.length > 0 ? 'border-brand-300 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+          selected.length > 0
+            ? 'border-brand-200 bg-brand-50 text-brand-700'
+            : 'border-slate-200 bg-slate-50/70 text-slate-600 hover:border-slate-300 hover:bg-white'
         }`}
       >
         <span className="truncate">
@@ -51,7 +53,7 @@ export function MultiSelect({ label, options, selected, onChange, width = 'w-44'
       </button>
 
       {open && (
-        <div className="absolute top-full z-30 mt-1 max-h-64 w-full min-w-[12rem] overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+        <div className="absolute top-full z-30 mt-1.5 max-h-64 w-full min-w-[12rem] overflow-y-auto rounded-xl border border-slate-200 bg-white py-1.5 shadow-elevated">
           {selected.length > 0 && (
             <button
               type="button"

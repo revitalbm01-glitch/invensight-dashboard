@@ -1,25 +1,37 @@
 import { useState } from 'react'
 
-export function Tooltip({ text }: { text: string }) {
+export function Tooltip({ text, tone = 'default' }: { text: string; tone?: 'default' | 'light' }) {
   const [open, setOpen] = useState(false)
 
   return (
     <span className="relative inline-flex">
-      <button
-        type="button"
+      <span
+        role="button"
+        tabIndex={0}
         aria-label="הסבר"
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            e.stopPropagation()
+            setOpen((v) => !v)
+          }
+        }}
         onClick={(e) => {
           e.stopPropagation()
           setOpen((v) => !v)
         }}
-        className="flex h-4 w-4 items-center justify-center rounded-full border border-slate-300 text-[10px] font-bold text-slate-400 hover:border-brand-400 hover:text-brand-500"
+        className={`flex h-4 w-4 cursor-pointer items-center justify-center rounded-full border text-[10px] font-bold ${
+          tone === 'light'
+            ? 'border-white/40 text-white/70 hover:border-white hover:text-white'
+            : 'border-slate-300 text-slate-400 hover:border-brand-400 hover:text-brand-500'
+        }`}
       >
         i
-      </button>
+      </span>
       {open && (
         <span
           role="tooltip"
