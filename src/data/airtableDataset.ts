@@ -1,26 +1,14 @@
 import { fetchAllRecords } from '../services/airtable'
-import { CATEGORIES, WAREHOUSES } from './generators/items'
+import { CATEGORIES, WAREHOUSES, computeStockStatus } from './generators/items'
+import { rateSupplier } from './generators/suppliers'
 import { generateStockValueTrend, generateOrdersTrend } from './generators/timeSeries'
-import type {
-  InventoryItem,
-  Supplier,
-  PurchaseOrder,
-  MockDataset,
-  StockStatus,
-  PoStatus,
-  AbcClass,
-  SupplierRating,
-} from '../types'
+import { assignAbcClasses } from '../logic/abcAnalysis'
+import type { InventoryItem, Supplier, PurchaseOrder, MockDataset, PoStatus } from '../types'
 
 interface SupplierFields {
   Name: string
   'Supplier Code': string
   'Avg Lead Time Days': number
-  'OTIF %': number
-  Rating?: string
-  'Order Count': number
-  'Order Value': number
-  'Late Order Count': number
 }
 
 interface ItemFields {
@@ -34,12 +22,9 @@ interface ItemFields {
   'Reorder Point': number
   'Max Stock': number
   'Unit Cost': number
-  'Stock Value': number
   'Avg Monthly Consumption': number
   'Last Movement Date': string
   'Last Updated': string
-  'ABC Class': string
-  'Stock Status': string
 }
 
 interface PurchaseOrderFields {
@@ -60,19 +45,6 @@ interface PurchaseOrderFields {
   'Is Full Qty': boolean
 }
 
-function mapStockStatus(label: string): StockStatus {
-  switch (label) {
-    case 'Out of Stock':
-      return 'OUT_OF_STOCK'
-    case 'Below Reorder':
-      return 'BELOW_REORDER'
-    case 'Excess':
-      return 'EXCESS'
-    default:
-      return 'NORMAL'
-  }
-}
-
 function mapPoStatus(label: string): PoStatus {
   switch (label) {
     case 'Open':
@@ -90,13 +62,6 @@ function mapPoStatus(label: string): PoStatus {
   }
 }
 
-const SUPPLIER_RATINGS: readonly SupplierRating[] = ['excellent', 'good', 'warning', 'critical']
-
-function mapRating(label: string | undefined): SupplierRating {
-  const lower = (label ?? '').toLowerCase()
-  return (SUPPLIER_RATINGS as readonly string[]).includes(lower) ? (lower as SupplierRating) : 'good'
-}
-
 export async function fetchAirtableDataset(): Promise<MockDataset> {
   const [supplierRecords, itemRecords, poRecords] = await Promise.all([
     fetchAllRecords<SupplierFields>('Suppliers'),
@@ -108,39 +73,36 @@ export async function fetchAirtableDataset(): Promise<MockDataset> {
   const skuByItemRecId = new Map(itemRecords.map((r) => [r.id, r.fields.SKU]))
   const itemNameByItemRecId = new Map(itemRecords.map((r) => [r.id, r.fields.Name]))
 
-  const suppliers: Supplier[] = supplierRecords.map((r) => ({
-    id: r.fields['Supplier Code'],
-    name: r.fields.Name,
-    avgLeadTimeDays: r.fields['Avg Lead Time Days'] ?? 0,
-    otifPercent: r.fields['OTIF %'] ?? 0,
-    rating: mapRating(r.fields.Rating),
-    orderCount: r.fields['Order Count'] ?? 0,
-    orderValue: r.fields['Order Value'] ?? 0,
-    lateOrderCount: r.fields['Late Order Count'] ?? 0,
-  }))
-
-  const items: InventoryItem[] = itemRecords.map((r) => {
+  // currentStock/unitCost/reorderPoint/maxStock come straight from Airtable, but
+  // stockValue/stockStatus/abcClass are derived — recompute them here rather than
+  // trusting stale values, so edits to the raw fields in Airtable take effect live.
+  const itemsRaw: InventoryItem[] = itemRecords.map((r) => {
     const f = r.fields
     const supplierRecId = f.Supplier?.[0]
+    const currentStock = f['Current Stock'] ?? 0
+    const reorderPoint = f['Reorder Point'] ?? 0
+    const maxStock = f['Max Stock'] ?? 0
+    const unitCost = f['Unit Cost'] ?? 0
     return {
       sku: f.SKU,
       name: f.Name,
       category: f.Category,
       warehouse: f.Warehouse,
       supplierId: (supplierRecId && supplierCodeByRecId.get(supplierRecId)) || '',
-      currentStock: f['Current Stock'] ?? 0,
+      currentStock,
       minStock: f['Min Stock'] ?? 0,
-      reorderPoint: f['Reorder Point'] ?? 0,
-      maxStock: f['Max Stock'] ?? 0,
-      unitCost: f['Unit Cost'] ?? 0,
-      stockValue: f['Stock Value'] ?? 0,
+      reorderPoint,
+      maxStock,
+      unitCost,
+      stockValue: Math.round(currentStock * unitCost * 100) / 100,
       avgMonthlyConsumption: f['Avg Monthly Consumption'] ?? 0,
       lastMovementDate: f['Last Movement Date'] ?? '',
       lastUpdated: f['Last Updated'] ?? '',
-      abcClass: (f['ABC Class'] as AbcClass) ?? 'C',
-      stockStatus: mapStockStatus(f['Stock Status']),
+      abcClass: 'C',
+      stockStatus: computeStockStatus(currentStock, reorderPoint, maxStock),
     }
   })
+  const items = assignAbcClasses(itemsRaw)
 
   const purchaseOrders: PurchaseOrder[] = poRecords.map((r) => {
     const f = r.fields
@@ -162,6 +124,31 @@ export async function fetchAirtableDataset(): Promise<MockDataset> {
       status: mapPoStatus(f.Status),
       isLate: !!f['Is Late'],
       isFullQty: !!f['Is Full Qty'],
+    }
+  })
+
+  // Order counts, OTIF %, lateness and rating are all rollups over purchaseOrders —
+  // recompute them live instead of reading the (now potentially stale) stored fields.
+  const suppliers: Supplier[] = supplierRecords.map((r) => {
+    const id = r.fields['Supplier Code']
+    const avgLeadTimeDays = r.fields['Avg Lead Time Days'] ?? 0
+    const supplierOrders = purchaseOrders.filter((po) => po.supplierId === id && po.status !== 'CANCELLED')
+    const completedOrders = supplierOrders.filter((po) => po.actualDeliveryDate !== null)
+    const otifOrders = completedOrders.filter((po) => !po.isLate && po.isFullQty)
+    const otifPercent =
+      completedOrders.length > 0 ? Math.round((otifOrders.length / completedOrders.length) * 1000) / 10 : 0
+    const lateOrderCount = supplierOrders.filter((po) => po.isLate && po.status !== 'RECEIVED').length
+    const orderValue = Math.round(supplierOrders.reduce((s, po) => s + po.orderValue, 0))
+
+    return {
+      id,
+      name: r.fields.Name,
+      avgLeadTimeDays,
+      otifPercent,
+      rating: rateSupplier(otifPercent, avgLeadTimeDays),
+      orderCount: supplierOrders.length,
+      orderValue,
+      lateOrderCount,
     }
   })
 
