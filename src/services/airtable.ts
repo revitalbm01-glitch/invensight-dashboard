@@ -33,6 +33,7 @@ export async function fetchAllRecords<T>(tableName: string): Promise<AirtableRec
 
     const res = await fetch(url.toString(), {
       headers: { Authorization: `Bearer ${apiKey}` },
+      cache: 'no-store',
     })
     if (!res.ok) {
       throw new Error(`בקשה ל-Airtable נכשלה (${res.status}) עבור טבלה "${tableName}": ${await res.text()}`)
