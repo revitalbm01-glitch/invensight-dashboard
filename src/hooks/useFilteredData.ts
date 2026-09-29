@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { mockDataset } from '../data/mockData'
+import { useDataset } from '../context/DataContext'
 import { filterItems, filterPurchaseOrders } from '../logic/filters'
 import { useFilters } from '../context/FilterContext'
 import type { InventoryItem, PurchaseOrder, Supplier } from '../types'
@@ -12,14 +12,15 @@ export interface FilteredData {
 
 export function useFilteredData(): FilteredData {
   const { filters } = useFilters()
+  const dataset = useDataset()
 
-  const items = useMemo(() => filterItems(mockDataset.items, filters), [filters])
-  const purchaseOrders = useMemo(() => filterPurchaseOrders(mockDataset.purchaseOrders, filters), [filters])
+  const items = useMemo(() => filterItems(dataset.items, filters), [dataset, filters])
+  const purchaseOrders = useMemo(() => filterPurchaseOrders(dataset.purchaseOrders, filters), [dataset, filters])
 
   const suppliers = useMemo(() => {
-    if (!filters.suppliers.length) return mockDataset.suppliers
-    return mockDataset.suppliers.filter((s) => filters.suppliers.includes(s.id))
-  }, [filters])
+    if (!filters.suppliers.length) return dataset.suppliers
+    return dataset.suppliers.filter((s) => filters.suppliers.includes(s.id))
+  }, [dataset, filters])
 
   return { items, purchaseOrders, suppliers }
 }

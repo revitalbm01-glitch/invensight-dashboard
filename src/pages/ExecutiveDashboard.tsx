@@ -11,7 +11,7 @@ import { useKpis } from '../hooks/useKpis'
 import { useFilteredData } from '../hooks/useFilteredData'
 import { useAlerts } from '../hooks/useAlerts'
 import { useFilters } from '../context/FilterContext'
-import { mockDataset } from '../data/mockData'
+import { useDataset } from '../context/DataContext'
 import { topItemsByValue } from '../logic/itemInsights'
 import type { KpiValue, StockStatus } from '../types'
 
@@ -31,6 +31,7 @@ export default function ExecutiveDashboard() {
   const { items } = useFilteredData()
   const alerts = useAlerts()
   const { updateFilter } = useFilters()
+  const dataset = useDataset()
   const navigate = useNavigate()
 
   const criticalAlerts = useMemo(() => alerts.filter((a) => a.severity === 'critical' || a.severity === 'warning').slice(0, 8), [alerts])
@@ -53,7 +54,7 @@ export default function ExecutiveDashboard() {
           <SectionHeading title="מגמות ושווי מלאי" />
           <div className="grid grid-cols-1 gap-3.5 xl:grid-cols-3">
             <div className="xl:col-span-2">
-              <TrendLineChart data={mockDataset.stockValueTrend} warehouses={mockDataset.warehouses} />
+              <TrendLineChart data={dataset.stockValueTrend} warehouses={dataset.warehouses} />
             </div>
             <CategoryDonutChart
               items={items}

@@ -10,7 +10,7 @@ import { SuppliersTable } from '../components/tables/SuppliersTable'
 import { PurchaseOrdersTable } from '../components/tables/PurchaseOrdersTable'
 import { useFilteredData } from '../hooks/useFilteredData'
 import { useFilters } from '../context/FilterContext'
-import { mockDataset } from '../data/mockData'
+import { useDataset } from '../context/DataContext'
 import { computeKpis } from '../logic/kpiCalculations'
 import { formatDays, formatNumber } from '../logic/formatters'
 import type { KpiValue } from '../types'
@@ -18,6 +18,7 @@ import type { KpiValue } from '../types'
 export default function Logistics() {
   const { items, purchaseOrders, suppliers } = useFilteredData()
   const { updateFilter } = useFilters()
+  const dataset = useDataset()
   const [searchParams] = useSearchParams()
   const [poSearch, setPoSearch] = useState('')
 
@@ -29,7 +30,7 @@ export default function Logistics() {
   }, [searchParams, updateFilter])
 
   const allKpis = useMemo(
-    () => computeKpis({ items, purchaseOrders, stockValueTrend: mockDataset.stockValueTrend }),
+    () => computeKpis({ items, purchaseOrders, stockValueTrend: dataset.stockValueTrend }),
     [items, purchaseOrders],
   )
   const logisticsKpis = useMemo(
@@ -78,7 +79,7 @@ export default function Logistics() {
         <div>
           <SectionHeading title="מגמות רכש וביצועי ספקים" />
           <div className="space-y-3.5">
-            <OrdersTrendChart data={mockDataset.ordersTrend} />
+            <OrdersTrendChart data={dataset.ordersTrend} />
             <div className="grid grid-cols-1 gap-3.5 xl:grid-cols-2">
               <SupplierPerformanceChart suppliers={suppliers} metric="leadTime" />
               <SupplierPerformanceChart suppliers={suppliers} metric="otif" />
@@ -107,7 +108,7 @@ export default function Logistics() {
         >
           <PurchaseOrdersTable
             orders={[...displayedOrders].sort((a, b) => (a.orderDate < b.orderDate ? 1 : -1)).slice(0, 60)}
-            suppliers={mockDataset.suppliers}
+            suppliers={dataset.suppliers}
           />
           {displayedOrders.length > 60 && (
             <p className="mt-3 text-center text-xs text-slate-400">

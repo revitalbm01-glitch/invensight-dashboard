@@ -9,7 +9,7 @@ import { SectionHeading } from '../components/common/SectionHeading'
 import { ItemsTable } from '../components/tables/ItemsTable'
 import { useFilteredData } from '../hooks/useFilteredData'
 import { useFilters } from '../context/FilterContext'
-import { mockDataset } from '../data/mockData'
+import { useDataset } from '../context/DataContext'
 import { topItemsByValue, excessStockItems, shortageRiskItems, noMovementItems } from '../logic/itemInsights'
 import { summarizeAbcClasses } from '../logic/abcAnalysis'
 import { formatNumber, formatCurrencyFull } from '../logic/formatters'
@@ -25,6 +25,7 @@ const ABC_CLASS_TONE: Record<'A' | 'B' | 'C', { ring: string; badge: string; bar
 export default function InventoryAnalysis() {
   const { items } = useFilteredData()
   const { updateFilter } = useFilters()
+  const dataset = useDataset()
   const [searchParams] = useSearchParams()
 
   useEffect(() => {
@@ -77,7 +78,7 @@ export default function InventoryAnalysis() {
           </div>
         </div>
 
-        <TrendLineChart data={mockDataset.stockValueTrend} warehouses={mockDataset.warehouses} />
+        <TrendLineChart data={dataset.stockValueTrend} warehouses={dataset.warehouses} />
 
         <ChartCard title="ABC Analysis — סיווג פריטים לפי תרומה לשווי המלאי" tooltip="A = 80% הראשונים מהשווי, B = עד 95%, C = היתרה.">
           <div className="mb-6 grid grid-cols-1 gap-3.5 sm:grid-cols-3">
