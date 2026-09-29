@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { PageLayout } from '../components/layout/PageLayout'
-import { CategoryBarChart } from '../components/charts/CategoryBarChart'
+import { CategoryDonutChart } from '../components/charts/CategoryDonutChart'
 import { TrendLineChart } from '../components/charts/TrendLineChart'
 import { AbcParetoChart } from '../components/charts/AbcParetoChart'
 import { ChartCard } from '../components/common/ChartCard'
@@ -62,17 +62,17 @@ export default function InventoryAnalysis() {
         <div>
           <SectionHeading title="חלוקת שווי מלאי" />
           <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2">
-            <CategoryBarChart
+            <CategoryDonutChart
               items={items}
               groupBy="category"
               title="שווי מלאי לפי קטגוריה"
-              onBarClick={(category) => updateFilter('categories', [category])}
+              onSliceClick={(category) => updateFilter('categories', [category])}
             />
-            <CategoryBarChart
+            <CategoryDonutChart
               items={items}
               groupBy="warehouse"
               title="שווי מלאי לפי מחסן"
-              onBarClick={(warehouse) => updateFilter('warehouses', [warehouse])}
+              onSliceClick={(warehouse) => updateFilter('warehouses', [warehouse])}
             />
           </div>
         </div>

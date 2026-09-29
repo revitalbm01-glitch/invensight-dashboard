@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { PageLayout } from '../components/layout/PageLayout'
 import { KpiGrid } from '../components/kpi/KpiGrid'
 import { TrendLineChart } from '../components/charts/TrendLineChart'
-import { CategoryBarChart } from '../components/charts/CategoryBarChart'
+import { CategoryDonutChart } from '../components/charts/CategoryDonutChart'
 import { ItemsTable } from '../components/tables/ItemsTable'
 import { ChartCard } from '../components/common/ChartCard'
 import { SectionHeading } from '../components/common/SectionHeading'
@@ -55,11 +55,11 @@ export default function ExecutiveDashboard() {
             <div className="xl:col-span-2">
               <TrendLineChart data={mockDataset.stockValueTrend} warehouses={mockDataset.warehouses} />
             </div>
-            <CategoryBarChart
+            <CategoryDonutChart
               items={items}
               groupBy="category"
               title="שווי מלאי לפי קטגוריה"
-              onBarClick={(category) => updateFilter('categories', [category])}
+              onSliceClick={(category) => updateFilter('categories', [category])}
             />
           </div>
         </div>

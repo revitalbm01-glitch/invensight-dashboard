@@ -19,11 +19,11 @@ export function PageLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div className="flex min-h-screen bg-slate-100/70">
+    <div className="flex min-h-screen bg-slate-50">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <TopFilterBar onOpenSidebar={() => setSidebarOpen(true)} />
-        <main className="flex-1 bg-[radial-gradient(120%_110px_at_50%_0%,rgba(37,99,235,0.06),transparent)] px-4 py-4 lg:px-7 lg:py-5">
+        <main className="flex-1 bg-slate-50 px-4 py-4 lg:px-7 lg:py-5">
           <div className="mx-auto max-w-[1760px]">
             <div className="mb-4 flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-3.5">
               <div>

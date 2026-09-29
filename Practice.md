@@ -16,18 +16,15 @@
   - `src/context` + `src/hooks` — הגשר בין logic ל-React (state, memoization).
   - `src/components` — תצוגה בלבד. רכיב לא "יודע" מאיפה הדאטה שלו מגיע — הוא מקבל props.
   - `src/pages` — מרכיבים components + hooks יחד למסך שלם.
-- **Reuse over duplication** — לפני שיוצרים component/טבלה/גרף חדש, בדקו אם `ItemsTable`, `DataTable`, `ChartCard`, `CategoryBarChart` (עם `groupBy` שונה) כבר עונים על הצורך. דוגמה: אין `WarehouseBarChart` נפרד — זה אותו `CategoryBarChart` עם `groupBy="warehouse"`.
+- **Reuse over duplication** — לפני שיוצרים component/טבלה/גרף חדש, בדקו אם `ItemsTable`, `DataTable`, `ChartCard`, `CategoryDonutChart` (עם `groupBy` שונה) כבר עונים על הצורך. דוגמה: אין `WarehouseBarChart`/`WarehouseDonutChart` נפרד — זה אותו `CategoryDonutChart` עם `groupBy="warehouse"`.
 - **נתוני דמה דטרמיניסטיים** — כל היצירה האקראית עוברת דרך ה-PRNG הממורכז ב-`src/data/seed.ts` (`rng`, `randInt`, `randFloat`, `pick`, `weightedPick`, `chance`). **לעולם אל תשתמשו ב-`Math.random()` ישירות** — זה שובר את העקביות בין רינדורים/רילודים.
 
 ## 2. כללי UI/UX
 
 - **RTL תמיד** — `index.html` עם `dir="rtl"`. כל טקסט חדש בעברית. אייקונים/חצים חייבים להתאים לכיוון RTL (בדקו חזותית לפני commit).
-- **צבע = משמעות, לא קישוט**. שימוש בצבעים מוגבל ל:
-  - ירוק (`status-good`) = תקין
-  - כתום (`status-warn`) = אזהרה
-  - אדום (`status-bad`) = חריגה/קריטי
-  - כחול/אפור (`brand-*`, `slate-*`) = ניטרלי/מידע
-  - אל תוסיפו צבעים נוספים ל"קישוט" גרפים — לכל היותר גוונים בתוך אותה משפחה (למשל PALETTE הכחול ב-`CategoryBarChart`).
+- **צבע = משמעות + זהות ויזואלית (עודכן)**. שני שכבות צבע נפרדות בפרויקט, אל תערבבו ביניהן:
+  1. **צבעי סטטוס פונקציונליים** (Badges, Alerts, DataTable, נקודות סטטוס): ירוק (`status-good`)=תקין, כתום (`status-warn`)=אזהרה, אדום (`status-bad`)=חריגה/קריטי, כחול/אפור=ניטרלי/מידע. **כאן אסור לסטות** — זו השפה שמאפשרת למשתמש לזהות בעיה תוך שנייה.
+  2. **פלטת KPI/Donut דקורטיבית** (`kpi.teal`/`kpi.orange`/`kpi.purple`/`kpi.blue`, ב-`tailwind.config.js`): משמשת לגיוון ויזואלי בכרטיסי `KpiCard` וב-`CategoryDonutChart` בלבד, מסתובבת לפי סדר קבוע. **`kpi.danger` (אדום) שמור בלעדית לחריגה** (`kpi.isBreached`) ואסור שיהיה חלק מהרוטציה הרגילה — כלומר גם בשכבה הדקורטיבית, אדום נשאר "משמעות" ולא "קישוט".
 - **כל KPI/גרף עם Tooltip הסברי** — השתמשו ברכיב `Tooltip` (`src/components/common/Tooltip.tsx`, עם `tone="light"` על רקעים כהים/גרדיאנט) או ב-`tooltip` prop של `ChartCard`. אל תשאירו מדד בלי הסבר.
 - **Empty States מעוצבים** — כל טבלה/רשימה שיכולה להיות ריקה (בעקבות פילטרים) חייבת EmptyState עם כותרת + תת-כותרת, לא "No Data" גולמי. `DataTable` כבר עושה את זה אוטומטית דרך `emptyTitle`/`emptySubtitle`.
 - **Responsive** — בדקו כל מסך חדש ב-3 רוחבים: מובייל (~375px), טאבלט (~768px), דסקטופ (1440px+). ה-Sidebar הופך ל-Drawer מתחת ל-`lg` (ב-Tailwind: `lg:` breakpoint = 1024px).
@@ -35,7 +32,9 @@
 ### 2.1 מערכת העיצוב (Design System) — עודכן בסבב "גימור UI"
 
 - **Sidebar כהה** — `Sidebar.tsx` משתמש ב-`bg-sidebar-gradient` (מוגדר ב-`tailwind.config.js theme.extend.backgroundImage`), לא בצבע שטוח. זו נקודת עוגן ה-"יוקרה" של העיצוב — אל תחזירו אותו ללבן.
-- **Hero KPI Card** — לכל מסך עם `KpiGrid` יש KPI "ראשי" אחד שמודגש: `<KpiGrid featuredId="totalStockValue" />` (בדשבורד) / `featuredId="otif"` (בלוגיסטיקה). ה-KPI המודגש מקבל `featured` ב-`KpiCard.tsx` ומרונדר עם `bg-brand-gradient`, טקסט לבן, וגודל `sm:col-span-2`. **בחרו כל פעם רק KPI אחד** להדגשה — ריבוי כרטיסי hero מבטל את האפקט ההיררכי.
+- **כרטיסי KPI צבעוניים (עודכן)** — כל כרטיס `KpiCard` הוא גרדיאנט צבעוני עם טקסט לבן (לא כרטיס לבן עוד). `KpiGrid` מעביר `colorIndex` מסתובב (0-3) לכל כרטיס שאינו hero/breached, וה-`KpiCard` בוחר גרדיאנט: `kpi.isBreached` → `bg-kpi-danger` (תמיד, עוקף הכל) → אחרת `featured` → `bg-kpi-teal` → אחרת `PALETTE_CLASSES[colorIndex % 4]`. **אל תוסיפו צבע נוסף לרוטציה בלי לעדכן גם את `tailwind.config.js` וגם את `SPEC.md` סעיף 9.**
+- **Hero KPI Card** — לכל מסך עם `KpiGrid` יש KPI "ראשי" אחד שמודגש: `<KpiGrid featuredId="totalStockValue" />` (בדשבורד) / `featuredId="otif"` (בלוגיסטיקה). ה-KPI המודגש מקבל `featured` ב-`KpiCard.tsx`, גרדיאנט טורקיז קבוע (`bg-kpi-teal`), וגודל `sm:col-span-2`. **בחרו כל פעם רק KPI אחד** להדגשה — ריבוי כרטיסי hero מבטל את האפקט ההיררכי.
+- **CategoryDonutChart** (`src/components/charts/CategoryDonutChart.tsx`) — הרכיב הגנרי לפילוח חלק-מתוך-שלם (קטגוריה/מחסן), מחליף את `CategoryBarChart` הישן (נמחק). Donut עם innerRadius, תווית "סה\"כ" במרכז, ומקרא מתחתיו. שימוש: `groupBy="category"|"warehouse"` + `onSliceClick`. **אל תשתמשו ב-Donut לגרפים עם יותר מ-6-7 פרוסות** (לא קריא) — לזה יש עדיין Bar/Area בשאר הרכיבים.
 - **SectionHeading** (`src/components/common/SectionHeading.tsx`) — משמש לחלק עמוד ארוך לקבוצות ויזואליות ברורות (לדוגמה: "מגמות ושווי מלאי", "תובנות ניהוליות", "חריגות מלאי"). השתמשו בו לפני כל קבוצת charts/cards חדשה בעמוד, לא רק בתוך `ChartCard`.
 - **צפיפות** — הפרויקט עבר סבב מכוון של "פחות שטחים לבנים": `ChartCard` הוא `p-4 sm:p-5` (לא יותר), `PageLayout`'s main הוא `py-4 lg:py-5`, שורות טבלה `py-2.5`. אם מוסיפים UI חדש — התאימו לצפיפות הזו, אל תחזרו לריווח הגדול המקורי.
 - **גרפים** — קו המגמה הראשי (`TrendLineChart`) הוא Area Chart עם גרדיאנט מילוי (`<defs><linearGradient>`), לא Line רגיל. שמרו על גובה אחיד סביב 300-310px לכל הגרפים באותו עמוד לעקביות ויזואלית.

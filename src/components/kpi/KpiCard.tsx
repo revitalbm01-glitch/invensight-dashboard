@@ -143,77 +143,55 @@ const ICONS: Record<string, () => JSX.Element> = {
   received: IconPackageCheck,
 }
 
-export function KpiCard({ kpi, onClick, featured = false }: { kpi: KpiValue; onClick?: () => void; featured?: boolean }) {
+// Decorative rotation for non-breached, non-featured cards. `danger` is
+// reserved exclusively for breached KPIs and is never part of the rotation.
+const PALETTE_CLASSES = ['bg-kpi-teal', 'bg-kpi-orange', 'bg-kpi-purple', 'bg-kpi-blue'] as const
+
+export function KpiCard({
+  kpi,
+  onClick,
+  featured = false,
+  colorIndex = 0,
+}: {
+  kpi: KpiValue
+  onClick?: () => void
+  featured?: boolean
+  colorIndex?: number
+}) {
   const good = isGoodDelta(kpi)
   const Icon = ICONS[kpi.id] ?? IconChart
-
-  if (featured) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        className={`group relative flex flex-col justify-between gap-4 rounded-2xl bg-brand-gradient p-5 text-right shadow-elevated transition-transform hover:-translate-y-0.5 sm:col-span-2 ${
-          onClick ? 'cursor-pointer' : 'cursor-default'
-        }`}
-      >
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/15 text-white">
-            <Icon />
-          </div>
-          <Tooltip text={kpi.tooltip} tone="light" />
-        </div>
-
-        <div>
-          <p className="text-[12.5px] font-semibold leading-tight text-white/70">{kpi.label}</p>
-          <div className="mt-1.5 text-[34px] font-extrabold leading-none tracking-tight text-white tabular-nums">
-            {formatValue(kpi)}
-          </div>
-        </div>
-
-        {kpi.deltaPercent !== null && (
-          <div className="flex items-center gap-1.5">
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-bold text-white">
-              {kpi.deltaPercent > 0 ? '↑' : kpi.deltaPercent < 0 ? '↓' : '—'} {formatDelta(kpi.deltaPercent)}
-            </span>
-            <span className="truncate text-[11px] text-white/60">לעומת תקופה קודמת</span>
-          </div>
-        )}
-      </button>
-    )
-  }
+  const gradientClass = kpi.isBreached ? 'bg-kpi-danger' : featured ? 'bg-kpi-teal' : PALETTE_CLASSES[colorIndex % PALETTE_CLASSES.length]
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`card card-hover group relative flex flex-col gap-2.5 overflow-hidden p-3.5 text-right transition-transform hover:-translate-y-0.5 ${
-        onClick ? 'cursor-pointer' : 'cursor-default'
-      } ${kpi.isBreached ? 'bg-gradient-to-br from-red-50/50 to-white ring-1 ring-inset ring-red-100' : ''}`}
+      className={`group relative flex flex-col justify-between gap-3 overflow-hidden rounded-2xl ${gradientClass} text-right text-white shadow-elevated transition-transform hover:-translate-y-0.5 ${
+        featured ? 'gap-4 p-5 sm:col-span-2' : 'p-4'
+      } ${onClick ? 'cursor-pointer' : 'cursor-default'}`}
     >
-      {kpi.isBreached && <span className="absolute inset-x-0 top-0 h-[3px] bg-status-bad" />}
-
       <div className="flex items-start justify-between gap-2">
-        <div
-          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
-            kpi.isBreached ? 'bg-status-badBg text-status-bad' : 'bg-brand-50 text-brand-600'
-          }`}
-        >
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/20 text-white">
           <Icon />
         </div>
         <div className="flex items-center gap-1.5">
           {kpi.isBreached && (
             <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-status-bad opacity-60" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-status-bad" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-70" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
             </span>
           )}
-          <Tooltip text={kpi.tooltip} />
+          <Tooltip text={kpi.tooltip} tone="light" />
         </div>
       </div>
 
       <div>
-        <p className="text-[11.5px] font-semibold leading-tight text-slate-500">{kpi.label}</p>
-        <div className="mt-1 text-[23px] font-extrabold leading-none tracking-tight text-slate-900 tabular-nums">
+        <p className="text-[11.5px] font-semibold leading-tight text-white/75">{kpi.label}</p>
+        <div
+          className={`mt-1 font-extrabold leading-none tracking-tight text-white tabular-nums ${
+            featured ? 'text-[32px]' : 'text-[22px]'
+          }`}
+        >
           {formatValue(kpi)}
         </div>
       </div>
@@ -222,16 +200,12 @@ export function KpiCard({ kpi, onClick, featured = false }: { kpi: KpiValue; onC
         <div className="flex items-center gap-1.5">
           <span
             className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10.5px] font-bold ${
-              good === null
-                ? 'bg-slate-100 text-slate-500'
-                : good
-                  ? 'bg-status-goodBg text-status-good'
-                  : 'bg-status-badBg text-status-bad'
+              good === null ? 'bg-white/25 text-white' : good ? 'bg-white/90 text-status-good' : 'bg-white/90 text-status-bad'
             }`}
           >
             {kpi.deltaPercent > 0 ? '↑' : kpi.deltaPercent < 0 ? '↓' : '—'} {formatDelta(kpi.deltaPercent)}
           </span>
-          <span className="truncate text-[10.5px] text-slate-400">לעומת תקופה קודמת</span>
+          <span className="truncate text-[10.5px] text-white/65">לעומת תקופה קודמת</span>
         </div>
       ) : (
         <div className="h-[17px]" />
