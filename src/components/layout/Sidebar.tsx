@@ -109,7 +109,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
               <span className="relative inline-flex h-2 w-2 rounded-full bg-status-good" />
             </span>
             <div className="min-w-0">
-              <p className="truncate text-[11px] font-semibold text-slate-300">נתוני דמה פעילים</p>
+              <p className="truncate text-[11px] font-semibold text-slate-300">מחובר ל-Airtable</p>
               <p className="truncate text-[10px] text-slate-500">עדכון אחרון: היום</p>
             </div>
           </div>
