@@ -1,5 +1,5 @@
 import { useFilters } from '../../context/FilterContext'
-import { mockDataset } from '../../data/mockData'
+import { useDataset } from '../../context/DataContext'
 import { MultiSelect } from '../common/MultiSelect'
 import { stockStatusLabel } from '../../logic/formatters'
 import type { StockStatus, AbcClass, GlobalFilters } from '../../types'
@@ -21,6 +21,7 @@ function activeFilterCount(filters: GlobalFilters): number {
 
 export function TopFilterBar({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   const { filters, updateFilter, resetFilters, isActive } = useFilters()
+  const dataset = useDataset()
   const count = activeFilterCount(filters)
 
   return (
@@ -65,19 +66,19 @@ export function TopFilterBar({ onOpenSidebar }: { onOpenSidebar: () => void }) {
 
         <MultiSelect
           label="מחסן"
-          options={mockDataset.warehouses.map((w) => ({ value: w, label: w }))}
+          options={dataset.warehouses.map((w) => ({ value: w, label: w }))}
           selected={filters.warehouses}
           onChange={(v) => updateFilter('warehouses', v)}
         />
         <MultiSelect
           label="קטגוריה"
-          options={mockDataset.categories.map((c) => ({ value: c, label: c }))}
+          options={dataset.categories.map((c) => ({ value: c, label: c }))}
           selected={filters.categories}
           onChange={(v) => updateFilter('categories', v)}
         />
         <MultiSelect
           label="ספק"
-          options={mockDataset.suppliers.map((s) => ({ value: s.id, label: s.name }))}
+          options={dataset.suppliers.map((s) => ({ value: s.id, label: s.name }))}
           selected={filters.suppliers}
           onChange={(v) => updateFilter('suppliers', v)}
           width="w-48"
