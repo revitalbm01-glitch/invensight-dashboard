@@ -17,7 +17,9 @@
   - `src/components` — תצוגה בלבד. רכיב לא "יודע" מאיפה הדאטה שלו מגיע — הוא מקבל props.
   - `src/pages` — מרכיבים components + hooks יחד למסך שלם.
 - **Reuse over duplication** — לפני שיוצרים component/טבלה/גרף חדש, בדקו אם `ItemsTable`, `DataTable`, `ChartCard`, `CategoryDonutChart` (עם `groupBy` שונה) כבר עונים על הצורך. דוגמה: אין `WarehouseBarChart`/`WarehouseDonutChart` נפרד — זה אותו `CategoryDonutChart` עם `groupBy="warehouse"`.
-- **נתוני דמה דטרמיניסטיים** — כל היצירה האקראית עוברת דרך ה-PRNG הממורכז ב-`src/data/seed.ts` (`rng`, `randInt`, `randFloat`, `pick`, `weightedPick`, `chance`). **לעולם אל תשתמשו ב-`Math.random()` ישירות** — זה שובר את העקביות בין רינדורים/רילודים.
+- **נתוני דמה דטרמיניסטיים (לסקריפטי ההזנה)** — הנתונים חיים ב-Airtable (סעיף 4), אבל כל יצירה אקראית של נתוני דמה חדשים (למשל `scripts/build-sales-batches.ts`) עוברת דרך ה-PRNG הממורכז ב-`src/data/seed.ts` (`rng`, `randInt`, `randFloat`, `pick`, `weightedPick`, `chance`) או PRNG עם seed קבוע. **לעולם אל תשתמשו ב-`Math.random()` ישירות** — זה שובר את היכולת לשחזר את הנתונים.
+- **סודות — כלל ברזל:** לעולם לא מכניסים Token/מפתח למשתנה `VITE_*` ולא לקוד הדשבורד: Vite נאפה אותם לתוך ה-JS הציבורי. מפתחות (Airtable, Anthropic, סיסמת הצ'אט) חיים רק ב-Variables של Railway וב-`.env` מקומי (ב-`.gitignore`). לא מדביקים אותם בצ'אט, ב-issues או ב-commit. אם מפתח נחשף — מבטלים ומחליפים, לא רק מוחקים מהקוד. כשמדפיסים משתני סביבה בטרמינל, מסתירים את הערכים לגמרי, לא חלקית.
+- **Backend (`server/`):** Node ללא תלויות חדשות, קריאה בלבד מ-Airtable, רשימת טבלאות מותרת, CORS מצומצם. כל כלי חדש לסוכן הצ'אט חייב להיות קריאה-בלבד, עם שמות שדות מאומתים ותוצאה מקוצצת. אל תוסיפו SQL חופשי או כתיבה.
 
 ## 2. כללי UI/UX
 
@@ -45,13 +47,18 @@
 2. **גרף חדש?** → `src/components/charts/`, עם `ChartCard` כעטיפה אחידה (title/subtitle/tooltip).
 3. **טבלה חדשה על InventoryItem?** → השתמשו ב-`ItemsTable` + `extraColumns`, אל תיצרו טבלה חדשה מאפס.
 4. **כלל התראה חדש?** → `src/logic/alertEngine.ts`, הוסיפו `AlertType` חדש ב-`src/types/index.ts` אם צריך, ותעדו ב-SPEC.md סעיף 7.
-5. **פילטר גלובלי חדש?** → הוסיפו שדה ל-`GlobalFilters` ב-`types/index.ts`, טפלו בו ב-`filterItems`/`filterPurchaseOrders` (`src/logic/filters.ts`), והוסיפו UI ב-`TopFilterBar.tsx`.
+5. **פילטר גלובלי חדש?** → הוסיפו שדה ל-`GlobalFilters` ב-`types/index.ts`, טפלו בו ב-`filterItems`/`filterPurchaseOrders`/`filterSales` (`src/logic/filters.ts`), והוסיפו UI ב-`TopFilterBar.tsx`.
+6. **מסך חדש?** → קובץ ב-`src/pages/`, route ב-`src/App.tsx`, פריט ב-`NAV_ITEMS` ב-`Sidebar.tsx`, ופרק ב-SPEC.md סעיף 6. דוגמה: `Sales.tsx` (+ `src/logic/salesAnalytics.ts`).
+7. **טבלה/שדה חדש ב-Airtable?** → הוסיפו את הטיפוס ב-`types/index.ts` ואת המיפוי ב-`src/data/airtableDataset.ts`; אם הצ'אט צריך אותו, גם ב-`server/data.mjs`. תעדו ב-SPEC.md סעיף 4.
+8. **שאלה/יכולת חדשה לעוזר ה-AI?** → קודם נסו לעבוד עם `describe_data` / `query_rows` / `aggregate` ב-`server/agent.mjs`; הוסיפו שדה נגזר ב-`server/data.mjs` אם צריך. שדה נגזר חייב להיות מחושב באותה נוסחה כמו בדשבורד.
 
 ## 4. כללי שמירת נתונים
 
-- כל הדאטה נוצרת **פעם אחת** ב-`src/data/mockData.ts` (`export const mockDataset`), בזמן טעינת המודול. **אל תקראו ל-generators האלה שוב בתוך קומפוננטות** — זה ייצור דאטה שונה ולשבור עקביות בין מסכים.
-- דאטה מחושבת (KPIs, alerts, ABC) **לא נשמרת** — היא נגזרת ב-`useMemo` מתוך `mockDataset` + הפילטרים הגלובליים בכל רינדור רלוונטי. זה מכוון: אין "מקור אמת כפול".
-- כשמחברים ERP אמיתי בעתיד: מחליפים את `src/data/mockData.ts` בשכבת fetch/API, אבל שומרים על אותו `MockDataset`/`InventoryItem`/וכו' shape כדי שכל שאר השכבות (`logic`, `hooks`, `components`) יישארו ללא שינוי.
+- **מקור האמת הוא Airtable.** הדשבורד טוען את 4 הטבלאות דרך השרת (`src/services/airtable.ts`), `fetchAirtableDataset()` ב-`src/data/airtableDataset.ts` בונה מהן את ה-dataset, ו-`DataContext` מספק אותו (`useDataset`, `useDataStatus` עם טעינה/שגיאה/רענון). **אל תקראו ל-`fetchAllRecords` מתוך קומפוננטות** — כל גישה לנתונים עוברת דרך `DataContext`.
+- **שדות נגזרים לא נקראים מ-Airtable** (`stockValue`, `stockStatus`, `abcClass`, סיכומי ספק) — הם מחושבים מחדש מהשדות הגולמיים ב-`airtableDataset.ts`. אחרת עריכה ידנית בטבלה לא תתבטא במדדים. אם משנים נוסחה, צריך לעדכן גם את `server/data.mjs` כדי שהצ'אט ימשיך להתאים לדשבורד.
+- דאטה מחושבת (KPIs, alerts, ABC) **לא נשמרת** — היא נגזרת ב-`useMemo` מה-dataset + הפילטרים הגלובליים. זה מכוון: אין "מקור אמת כפול".
+- הגנרטורים ב-`src/data/generators/` ו-`mockData.ts` אינם בשימוש בזמן ריצה (נשארו לסקריפטי הזנה ולפונקציות משותפות כמו `computeStockStatus`). חיבור מקור אחר (ERP): מחליפים את שכבת הטעינה ושומרים על אותם טיפוסים ב-`src/types/index.ts`.
+- **אל תייבאו שוב נתונים ל-Airtable** בלי בקשה מפורשת — זה מוחק עריכות ידניות ועלול ליצור כפילויות.
 
 ## 5. כללי Git
 
@@ -71,11 +78,18 @@ npm run preview      # מריץ את ה-build הסטטי לבדיקה סופית
 ```
 
 בכל שינוי:
-1. **בדקו ב-4 המסכים** שהשינוי לא שבר תצוגה קיימת (במיוחד אם שיניתם `types/index.ts` או `logic/`).
+1. **בדקו בכל 6 המסכים** (דשבורד, מלאי, לוגיסטיקה, מכירות, התראות, עוזר AI) שהשינוי לא שבר תצוגה קיימת (במיוחד אם שיניתם `types/index.ts` או `logic/`).
 2. **שנו כמה פילטרים גלובליים** ווודאו שהמסך מגיב נכון בכל המסכים (לא רק בזה ששיניתם).
 3. **בדקו Empty State** — סננו לקומבינציה שלא מחזירה תוצאות ווודאו שהתצוגה נשארת מקצועית.
 4. **בדקו Responsive** — לפחות ברוחב מובייל אחד.
 5. אם שיניתם נוסחת KPI — עדכנו גם את ה-Tooltip הטקסטואלי שלו וגם את SPEC.md סעיף 5.
+
+### פריסה ובדיקת השרת
+
+- **האתר:** כל push ל-`main` מפעיל את `.github/workflows/deploy.yml` ופורס ל-GitHub Pages. הדשבורד אינו מכיל סודות, ולכן ה-workflow לא צריך אותם.
+- **השרת:** `cd server && railway up` (הפרויקט `invensight-proxy`, השירות `proxy`). משתני הסביבה נשמרים ב-Railway בין פריסות. בדיקה: `GET /health` חייב להחזיר `{"ok":true,"chat":true}`; `GET /api/Sales` מחזיר 250 רשומות; `POST /api/chat` עם סיסמה שגויה מחזיר 401.
+- **שינוי בשרת לא מתפרסם עם ה-push לאתר** — צריך להריץ `railway up` בנפרד.
+- אחרי שינוי בנתונים או בנוסחאות, וודאו שהצ'אט והדשבורד מחזירים אותו מספר (למשל מספר הפריטים מתחת לנקודת הזמנה).
 
 ### ⚠️ תקלה אמיתית שקרתה כאן — שווה לזכור
 
