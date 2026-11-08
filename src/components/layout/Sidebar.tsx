@@ -38,6 +38,13 @@ function IconChart() {
     </svg>
   )
 }
+function IconChat() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <path d="M5 6h14a1 1 0 011 1v9a1 1 0 01-1 1h-8l-4 3v-3H5a1 1 0 01-1-1V7a1 1 0 011-1Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+    </svg>
+  )
+}
 function IconBell() {
   return (
     <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
@@ -53,6 +60,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/logistics', label: 'לוגיסטיקה ורכש', icon: <IconTruck /> },
   { to: '/sales', label: 'מכירות', icon: <IconChart /> },
   { to: '/alerts', label: 'התראות ניהוליות', icon: <IconBell /> },
+  { to: '/assistant', label: 'עוזר AI', icon: <IconChat /> },
 ]
 
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {

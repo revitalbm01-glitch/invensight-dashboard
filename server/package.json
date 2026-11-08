@@ -1,0 +1,9 @@
+{
+  "name": "invensight-airtable-proxy",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Read-only Airtable proxy: keeps the Airtable token on the server instead of in the public JS bundle.",
+  "scripts": { "start": "node index.mjs" },
+  "engines": { "node": ">=18" }
+}
