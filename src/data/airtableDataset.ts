@@ -3,7 +3,7 @@ import { CATEGORIES, WAREHOUSES, computeStockStatus } from './generators/items'
 import { rateSupplier } from './generators/suppliers'
 import { generateStockValueTrend, generateOrdersTrend } from './generators/timeSeries'
 import { assignAbcClasses } from '../logic/abcAnalysis'
-import type { InventoryItem, Supplier, PurchaseOrder, MockDataset, PoStatus } from '../types'
+import type { InventoryItem, Supplier, PurchaseOrder, Sale, MockDataset, PoStatus } from '../types'
 
 interface SupplierFields {
   Name: string
@@ -45,6 +45,18 @@ interface PurchaseOrderFields {
   'Is Full Qty': boolean
 }
 
+interface SaleFields {
+  'Sale ID': string
+  Item?: string[]
+  'Item Name'?: string
+  Customer?: string
+  Warehouse?: string
+  'Sale Date': string
+  Quantity: number
+  'Unit Price': number
+  Revenue: number
+}
+
 function mapPoStatus(label: string): PoStatus {
   switch (label) {
     case 'Open':
@@ -63,10 +75,11 @@ function mapPoStatus(label: string): PoStatus {
 }
 
 export async function fetchAirtableDataset(): Promise<MockDataset> {
-  const [supplierRecords, itemRecords, poRecords] = await Promise.all([
+  const [supplierRecords, itemRecords, poRecords, saleRecords] = await Promise.all([
     fetchAllRecords<SupplierFields>('Suppliers'),
     fetchAllRecords<ItemFields>('Items'),
     fetchAllRecords<PurchaseOrderFields>('Purchase Orders'),
+    fetchAllRecords<SaleFields>('Sales'),
   ])
 
   const supplierCodeByRecId = new Map(supplierRecords.map((r) => [r.id, r.fields['Supplier Code']]))
@@ -127,6 +140,29 @@ export async function fetchAirtableDataset(): Promise<MockDataset> {
     }
   })
 
+  const itemBySku = new Map(items.map((it) => [it.sku, it]))
+  const sales: Sale[] = saleRecords.map((r) => {
+    const f = r.fields
+    const itemRecId = f.Item?.[0]
+    const sku = (itemRecId && skuByItemRecId.get(itemRecId)) || ''
+    const item = itemBySku.get(sku)
+    const quantity = f.Quantity ?? 0
+    return {
+      saleId: f['Sale ID'],
+      sku,
+      itemName: item?.name ?? f['Item Name'] ?? '',
+      category: item?.category ?? '',
+      supplierId: item?.supplierId ?? '',
+      customer: f.Customer ?? '',
+      warehouse: f.Warehouse ?? item?.warehouse ?? '',
+      saleDate: f['Sale Date'] ?? '',
+      quantity,
+      unitPrice: f['Unit Price'] ?? 0,
+      revenue: f.Revenue ?? Math.round(quantity * (f['Unit Price'] ?? 0) * 100) / 100,
+      cost: Math.round(quantity * (item?.unitCost ?? 0) * 100) / 100,
+    }
+  })
+
   // Order counts, OTIF %, lateness and rating are all rollups over purchaseOrders —
   // recompute them live instead of reading the (now potentially stale) stored fields.
   const suppliers: Supplier[] = supplierRecords.map((r) => {
@@ -159,6 +195,7 @@ export async function fetchAirtableDataset(): Promise<MockDataset> {
     items,
     suppliers,
     purchaseOrders,
+    sales,
     stockValueTrend: generateStockValueTrend(items, warehouses),
     ordersTrend: generateOrdersTrend(purchaseOrders),
     categories,

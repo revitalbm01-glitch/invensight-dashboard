@@ -6,7 +6,7 @@ const MONTH_LABELS_HE = [
   'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר',
 ]
 
-function lastNMonths(n: number): { date: string; label: string }[] {
+export function lastNMonths(n: number): { date: string; label: string }[] {
   const result: { date: string; label: string }[] = []
   const now = new Date()
   for (let i = n - 1; i >= 0; i--) {

@@ -36,6 +36,7 @@ function buildDataset(): MockDataset {
     items,
     suppliers,
     purchaseOrders,
+    sales: [],
     stockValueTrend,
     ordersTrend,
     categories: [...CATEGORIES],

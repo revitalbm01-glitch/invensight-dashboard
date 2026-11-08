@@ -60,6 +60,28 @@ export interface PurchaseOrder {
   isFullQty: boolean
 }
 
+export interface Sale {
+  saleId: string
+  sku: string
+  itemName: string
+  category: string
+  supplierId: string
+  customer: string
+  warehouse: string
+  saleDate: string
+  quantity: number
+  unitPrice: number
+  revenue: number
+  cost: number
+}
+
+export interface SalesTrendPoint {
+  date: string
+  label: string
+  revenue: number
+  units: number
+}
+
 export interface StockValuePoint {
   date: string
   label: string
@@ -78,6 +100,7 @@ export interface MockDataset {
   items: InventoryItem[]
   suppliers: Supplier[]
   purchaseOrders: PurchaseOrder[]
+  sales: Sale[]
   stockValueTrend: StockValuePoint[]
   ordersTrend: OrdersTrendPoint[]
   categories: string[]

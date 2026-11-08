@@ -31,6 +31,13 @@ function IconTruck() {
     </svg>
   )
 }
+function IconChart() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <path d="M4 19V5M4 19h16M8 15v-4M12 15V8M16 15v-6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
 function IconBell() {
   return (
     <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
@@ -44,6 +51,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'דשבורד ראשי', icon: <IconHome /> },
   { to: '/inventory', label: 'ניתוח מלאי', icon: <IconBox /> },
   { to: '/logistics', label: 'לוגיסטיקה ורכש', icon: <IconTruck /> },
+  { to: '/sales', label: 'מכירות', icon: <IconChart /> },
   { to: '/alerts', label: 'התראות ניהוליות', icon: <IconBell /> },
 ]
 

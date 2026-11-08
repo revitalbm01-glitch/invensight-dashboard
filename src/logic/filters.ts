@@ -1,4 +1,4 @@
-import type { GlobalFilters, InventoryItem, PurchaseOrder } from '../types'
+import type { GlobalFilters, InventoryItem, PurchaseOrder, Sale } from '../types'
 
 export const DEFAULT_FILTERS: GlobalFilters = {
   dateRange: { from: null, to: null },
@@ -35,6 +35,20 @@ export function filterItems(items: InventoryItem[], filters: GlobalFilters): Inv
     if (search && !item.sku.toLowerCase().includes(search) && !item.name.toLowerCase().includes(search)) return false
     if (filters.dateRange.from && item.lastUpdated < filters.dateRange.from) return false
     if (filters.dateRange.to && item.lastUpdated > filters.dateRange.to) return false
+    return true
+  })
+}
+
+export function filterSales(sales: Sale[], filters: GlobalFilters): Sale[] {
+  const search = filters.skuSearch.trim().toLowerCase()
+
+  return sales.filter((s) => {
+    if (filters.warehouses.length && !filters.warehouses.includes(s.warehouse)) return false
+    if (filters.categories.length && !filters.categories.includes(s.category)) return false
+    if (filters.suppliers.length && !filters.suppliers.includes(s.supplierId)) return false
+    if (search && !s.sku.toLowerCase().includes(search) && !s.itemName.toLowerCase().includes(search)) return false
+    if (filters.dateRange.from && s.saleDate < filters.dateRange.from) return false
+    if (filters.dateRange.to && s.saleDate > filters.dateRange.to) return false
     return true
   })
 }

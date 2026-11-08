@@ -5,6 +5,7 @@ import ExecutiveDashboard from './pages/ExecutiveDashboard'
 import InventoryAnalysis from './pages/InventoryAnalysis'
 import Logistics from './pages/Logistics'
 import ManagementAlerts from './pages/ManagementAlerts'
+import Sales from './pages/Sales'
 
 function AppShell() {
   const { loading, error, reload } = useDataStatus()
@@ -38,6 +39,7 @@ function AppShell() {
         <Route path="/" element={<ExecutiveDashboard />} />
         <Route path="/inventory" element={<InventoryAnalysis />} />
         <Route path="/logistics" element={<Logistics />} />
+        <Route path="/sales" element={<Sales />} />
         <Route path="/alerts" element={<ManagementAlerts />} />
       </Routes>
     </FilterProvider>
