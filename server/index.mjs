@@ -131,14 +131,14 @@ async function handleChat(req, res, origin) {
   if (overDailyCap()) return send(res, 429, { error: 'הגענו לתקרת השימוש היומית של הצ׳אט.' }, origin)
 
   try {
-    const { reply, toolCalls } = await runAgent({
+    const { reply, blocks, toolCalls } = await runAgent({
       apiKey: ANTHROPIC_KEY,
       history,
       message,
       fetchAll: fetchAllRecords,
       onCost: addSpend,
     })
-    send(res, 200, { reply, toolCalls }, origin)
+    send(res, 200, { reply, blocks, toolCalls }, origin)
   } catch (e) {
     console.error('chat failed:', e.message)
     send(res, 502, { error: 'שגיאה בעיבוד השאלה. נסי שוב.' }, origin)

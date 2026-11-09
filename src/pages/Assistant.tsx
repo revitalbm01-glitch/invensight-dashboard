@@ -1,16 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { PageLayout } from '../components/layout/PageLayout'
+import { ChatBlocks } from '../components/chat/ChatBlocks'
 import { ChatAuthError, sendChat } from '../services/chat'
-import type { ChatMessage } from '../services/chat'
+import type { ChatBlock, ChatMessage } from '../services/chat'
+
+interface UiMessage extends ChatMessage {
+  blocks?: ChatBlock[]
+}
 
 const PASSWORD_KEY = 'invensight-chat-password'
 
 const SUGGESTIONS = [
-  'כמה פריטים נמצאים מתחת לנקודת ההזמנה?',
-  'מה סך ההכנסות ממכירות לפי חודש?',
-  'מי שלושת הספקים עם ערך ההזמנות הגבוה ביותר?',
-  'אילו פריטים אזלו מהמלאי ובאיזה מחסן?',
+  'הצג גרף של ההכנסות ממכירות לפי חודש',
+  'הצג גרף עוגה של שווי המלאי לפי קטגוריה',
+  'הצג טבלה של 10 הפריטים שאזלו מהמלאי',
+  'הצג גרף של ערך ההזמנות לפי ספק',
 ]
 
 function readStoredPassword(): string {
@@ -24,7 +29,7 @@ function readStoredPassword(): string {
 export default function Assistant() {
   const [password, setPassword] = useState(readStoredPassword)
   const [passwordInput, setPasswordInput] = useState('')
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [messages, setMessages] = useState<UiMessage[]>([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -52,13 +57,14 @@ export default function Assistant() {
     const question = text.trim()
     if (!question || busy) return
     const history = messages
+    const textHistory: ChatMessage[] = history.map(({ role, content }) => ({ role, content }))
     setMessages([...history, { role: 'user', content: question }])
     setInput('')
     setBusy(true)
     setError(null)
     try {
-      const reply = await sendChat(password, history, question)
-      setMessages((m) => [...m, { role: 'assistant', content: reply }])
+      const { reply, blocks } = await sendChat(password, textHistory, question)
+      setMessages((m) => [...m, { role: 'assistant', content: reply, blocks }])
     } catch (err) {
       if (err instanceof ChatAuthError) {
         try {
@@ -93,7 +99,7 @@ export default function Assistant() {
           </button>
         </form>
       ) : (
-        <div className="mx-auto flex h-[calc(100vh-15rem)] min-h-[420px] max-w-3xl flex-col rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="mx-auto flex h-[calc(100vh-15rem)] min-h-[420px] max-w-4xl flex-col rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="flex-1 space-y-3 overflow-y-auto p-4">
             {messages.length === 0 && (
               <div>
@@ -114,12 +120,15 @@ export default function Assistant() {
             )}
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-start' : 'justify-end'}`}>
-                <div
-                  className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-[13.5px] leading-relaxed ${
-                    m.role === 'user' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-800'
-                  }`}
-                >
-                  {m.content}
+                <div className={m.blocks?.length ? 'w-full max-w-full' : 'max-w-[85%]'}>
+                  <div
+                    className={`w-fit max-w-full whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-[13.5px] leading-relaxed ${
+                      m.role === 'user' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-800'
+                    }`}
+                  >
+                    {m.content}
+                  </div>
+                  {m.blocks && m.blocks.length > 0 && <ChatBlocks blocks={m.blocks} />}
                 </div>
               </div>
             ))}
