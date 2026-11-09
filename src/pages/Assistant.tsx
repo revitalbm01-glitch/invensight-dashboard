@@ -84,7 +84,8 @@ export default function Assistant() {
     <PageLayout title="עוזר AI" subtitle="שאלו בעברית על המלאי, הספקים, ההזמנות והמכירות — התשובות מחושבות מנתוני Airtable החיים.">
       {!password ? (
         <form onSubmit={savePassword} className="mx-auto max-w-sm rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="mb-3 text-sm font-semibold text-slate-700">הצ׳אט מוגן בסיסמה</p>
+          <p className="mb-1 text-sm font-semibold text-slate-700">הצ׳אט מוגן בסיסמה</p>
+          <p className="mb-3 text-xs text-slate-400">אם הסיסמה באנגלית, ודאי שהמקלדת על אנגלית.</p>
           <input
             type="password"
             value={passwordInput}

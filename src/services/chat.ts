@@ -34,7 +34,8 @@ export class ChatAuthError extends Error {}
 export async function sendChat(password: string, history: ChatMessage[], message: string): Promise<ChatReply> {
   const res = await fetch(`${API_URL}/api/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-App-Password': password },
+    // HTTP headers only carry Latin-1; percent-encode so any characters (e.g. Hebrew typed by mistake) are safe.
+    headers: { 'Content-Type': 'application/json', 'X-App-Password': encodeURIComponent(password) },
     body: JSON.stringify({ message, history }),
   })
   let data: { reply?: string; blocks?: ChatBlock[]; error?: string } = {}

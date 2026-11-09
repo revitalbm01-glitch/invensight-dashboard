@@ -93,8 +93,14 @@ function overDailyCap() {
   if (spend.day !== today()) spend = { day: today(), usd: 0 }
   return spend.usd >= DAILY_CAP_USD
 }
-function passwordOk(given) {
-  if (!APP_PASSWORD || typeof given !== 'string') return false
+function passwordOk(rawGiven) {
+  if (!APP_PASSWORD || typeof rawGiven !== 'string') return false
+  let given = rawGiven
+  try {
+    given = decodeURIComponent(rawGiven) // the browser percent-encodes the header
+  } catch {
+    // not encoded: compare as-is
+  }
   const a = Buffer.from(given)
   const b = Buffer.from(APP_PASSWORD)
   return a.length === b.length && timingSafeEqual(a, b)
