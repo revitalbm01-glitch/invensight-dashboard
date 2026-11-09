@@ -11,6 +11,7 @@ export interface ChartBlock {
   title: string
   valueLabel: string
   field: string | null
+  valueType?: 'money' | 'percent' | 'number'
   points: { label: string; value: number }[]
 }
 
@@ -18,6 +19,7 @@ export interface TableBlock {
   type: 'table'
   title: string
   columns: string[]
+  formats?: Record<string, 'money' | 'percent' | 'number'>
   rows: Record<string, string | number | boolean | null>[]
   totalMatching: number
 }

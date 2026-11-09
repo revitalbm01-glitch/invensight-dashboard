@@ -80,9 +80,18 @@ const MONEY_FIELD = /(value|cost|revenue|price|profit)$/i
 const isMoneyField = (f: string | null) => !!f && MONEY_FIELD.test(f.trim())
 const isPercentField = (f: string | null) => !!f && f.includes('%')
 
-function formatCell(column: string, value: string | number | boolean | null): string {
+function formatCell(
+  column: string,
+  value: string | number | boolean | null,
+  kind?: 'money' | 'percent' | 'number',
+): string {
   if (value === null || value === undefined || value === '') return '—'
-  if (typeof value === 'number') return isMoneyField(column) ? formatCurrencyFull(value) : formatNumber(value)
+  if (typeof value === 'number') {
+    if (kind === 'percent') return `${formatNumber(Math.round(value * 10) / 10)}%`
+    if (kind === 'money') return formatCurrencyFull(value)
+    if (kind === 'number') return formatNumber(value)
+    return isMoneyField(column) ? formatCurrencyFull(value) : formatNumber(value)
+  }
   if (typeof value === 'boolean') return value ? 'כן' : 'לא'
   return String(value)
 }
@@ -96,10 +105,11 @@ interface ChartFormat {
 // Money is shown in thousands of ₪ ("אלפי ₪") when the numbers are large; small money values stay in ₪.
 function chartFormat(block: ChartBlock): ChartFormat {
   const max = Math.max(...block.points.map((p) => Math.abs(p.value)), 0)
-  if (isPercentField(block.field)) {
+  const type = block.valueType ?? (isPercentField(block.field) ? 'percent' : isMoneyField(block.field) ? 'money' : 'number')
+  if (type === 'percent') {
     return { unit: 'באחוזים', label: (v) => `${formatNumber(Math.round(v * 10) / 10)}%`, full: (v) => `${formatNumber(Math.round(v * 10) / 10)}%` }
   }
-  if (isMoneyField(block.field)) {
+  if (type === 'money') {
     if (max >= 10_000) {
       const k = (v: number) => formatNumber(Math.round(v / 1000))
       return { unit: 'באלפי ₪', label: k, full: (v) => `${k(v)} אלפי ₪` }
@@ -220,7 +230,7 @@ function TableView({ block }: { block: TableBlock }) {
                       {badge ? (
                         <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${badge.cls}`}>{badge.label}</span>
                       ) : (
-                        formatCell(c, v)
+                        formatCell(c, v, block.formats?.[c])
                       )}
                     </td>
                   )

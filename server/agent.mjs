@@ -31,8 +31,13 @@ const aggregateProps = {
   filters: filterSchema,
   group_by: { type: 'string' },
   bucket: { type: 'string', enum: ['month'], description: 'Only for date fields used in group_by.' },
-  metric: { type: 'string', enum: ['count', 'sum', 'avg', 'min', 'max'] },
-  field: { type: 'string', description: 'Numeric field for sum/avg/min/max.' },
+  metric: {
+    type: 'string',
+    enum: ['count', 'sum', 'avg', 'min', 'max', 'ratio_pct'],
+    description: 'ratio_pct = 100 * sum(field) / sum(denominator_field), e.g. gross margin % = Gross Profit / Revenue.',
+  },
+  field: { type: 'string', description: 'Numeric field for sum/avg/min/max, or the numerator for ratio_pct.' },
+  denominator_field: { type: 'string', description: 'Only for ratio_pct: the denominator field.' },
   sort_desc: { type: 'boolean', description: 'Sort groups by value, descending (default true).' },
   limit: { type: 'integer', description: 'Max groups returned, default 20, max 50.' },
 }
@@ -74,6 +79,39 @@ const tools = [
         ...aggregateProps,
       },
       required: ['title', 'chart_type', 'table', 'metric', 'group_by'],
+    },
+  },
+  {
+    name: 'show_grouped_table',
+    description:
+      'Displays a colored table with one row per group and SEVERAL measures side by side (e.g. per customer: margin %, revenue, number of sales). Use it for rankings that need more than one number. measures[].metric may be count/sum/avg/min/max/ratio_pct; the server computes and renders everything.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Short Hebrew table title.' },
+        table: { type: 'string', enum: TABLES },
+        filters: filterSchema,
+        group_by: { type: 'string' },
+        group_label: { type: 'string', description: 'Hebrew header of the group column, e.g. "לקוח".' },
+        bucket: { type: 'string', enum: ['month'] },
+        measures: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              label: { type: 'string', description: 'Hebrew column header.' },
+              metric: { type: 'string', enum: ['count', 'sum', 'avg', 'min', 'max', 'ratio_pct'] },
+              field: { type: 'string' },
+              denominator_field: { type: 'string' },
+            },
+            required: ['label', 'metric'],
+          },
+        },
+        sort_by_measure: { type: 'integer', description: 'Index (0-based) of the measure to sort by. Default 0.' },
+        sort_desc: { type: 'boolean', description: 'Default true; use false for "lowest first".' },
+        limit: { type: 'integer', description: 'Default 10, max 50.' },
+      },
+      required: ['title', 'table', 'group_by', 'measures'],
     },
   },
   {
@@ -135,13 +173,42 @@ function queryRows(data, input) {
   return { total_matching: total, returned: out.length, rows: out }
 }
 
-function aggregateRows(data, input) {
-  const rows = applyFilters(pickTable(data, input.table), input.filters)
-  checkField(rows, input.group_by)
-  if (input.metric !== 'count') {
-    if (!input.field) throw new Error('"field" is required for this metric')
-    checkField(rows, input.field)
+const MONEY_FIELD = /(value|cost|revenue|price|profit)$/i
+
+// 'money' | 'percent' | 'number' — tells the browser how to format a measure.
+function valueTypeOf(m) {
+  if (m.metric === 'ratio_pct' || (m.field && String(m.field).includes('%'))) return 'percent'
+  if (m.metric !== 'count' && m.field && MONEY_FIELD.test(String(m.field).trim())) return 'money'
+  return 'number'
+}
+
+function checkMeasure(rows, m) {
+  if (m.metric === 'count') return
+  if (!m.field) throw new Error('"field" is required for this metric')
+  checkField(rows, m.field)
+  if (m.metric === 'ratio_pct') {
+    if (!m.denominator_field) throw new Error('"denominator_field" is required for ratio_pct')
+    checkField(rows, m.denominator_field)
   }
+}
+
+function calcMeasure(rs, m) {
+  if (m.metric === 'count') return rs.length
+  const nums = (f) => rs.map((r) => Number(r[f])).filter((n) => Number.isFinite(n))
+  const sum = (a) => a.reduce((x, y) => x + y, 0)
+  if (m.metric === 'ratio_pct') {
+    const den = sum(nums(m.denominator_field))
+    return den === 0 ? null : round2((sum(nums(m.field)) / den) * 100)
+  }
+  const a = nums(m.field)
+  if (!a.length) return null
+  if (m.metric === 'sum') return round2(sum(a))
+  if (m.metric === 'avg') return round2(sum(a) / a.length)
+  return m.metric === 'min' ? Math.min(...a) : Math.max(...a)
+}
+
+function groupRows(rows, input) {
+  checkField(rows, input.group_by)
   const groups = new Map()
   for (const r of rows) {
     let key = input.group_by ? r[input.group_by] : 'all'
@@ -150,18 +217,32 @@ function aggregateRows(data, input) {
     g.push(r)
     groups.set(key, g)
   }
-  const calc = (rs) => {
-    if (input.metric === 'count') return rs.length
-    const nums = rs.map((r) => Number(r[input.field])).filter((n) => Number.isFinite(n))
-    if (!nums.length) return null
-    if (input.metric === 'sum') return round2(nums.reduce((a, b) => a + b, 0))
-    if (input.metric === 'avg') return round2(nums.reduce((a, b) => a + b, 0) / nums.length)
-    return input.metric === 'min' ? Math.min(...nums) : Math.max(...nums)
-  }
-  const result = [...groups.entries()].map(([group, rs]) => ({ group, value: calc(rs), rows: rs.length }))
+  return groups
+}
+
+function aggregateRows(data, input) {
+  const rows = applyFilters(pickTable(data, input.table), input.filters)
+  checkMeasure(rows, input)
+  const result = [...groupRows(rows, input).entries()].map(([group, rs]) => ({ group, value: calcMeasure(rs, input), rows: rs.length }))
   if (input.bucket === 'month') result.sort((a, b) => (a.group < b.group ? -1 : 1))
   else result.sort((a, b) => (input.sort_desc === false ? 1 : -1) * ((a.value ?? 0) - (b.value ?? 0)))
   return { groups_total: result.length, metric: input.metric, field: input.field ?? null, results: result.slice(0, clampLimit(input.limit)) }
+}
+
+// One row per group with several measures at once (e.g. customer -> margin %, revenue, orders).
+function groupedSummary(data, input) {
+  const rows = applyFilters(pickTable(data, input.table), input.filters)
+  const measures = input.measures ?? []
+  if (!measures.length) throw new Error('"measures" must not be empty')
+  for (const m of measures) checkMeasure(rows, m)
+  const groups = [...groupRows(rows, input).entries()].map(([group, rs]) => ({
+    group,
+    values: measures.map((m) => calcMeasure(rs, m)),
+  }))
+  const idx = Math.min(Math.max(Number(input.sort_by_measure) || 0, 0), measures.length - 1)
+  if (input.bucket === 'month') groups.sort((a, b) => (a.group < b.group ? -1 : 1))
+  else groups.sort((a, b) => (input.sort_desc === false ? 1 : -1) * ((a.values[idx] ?? 0) - (b.values[idx] ?? 0)))
+  return { measures, groups_total: groups.length, groups: groups.slice(0, clampLimit(input.limit)) }
 }
 
 export async function runTool(name, input, fetchAll, blocks = []) {
@@ -186,6 +267,7 @@ export async function runTool(name, input, fetchAll, blocks = []) {
       title: String(input.title ?? ''),
       valueLabel: String(input.value_label ?? ''),
       field: input.metric === 'count' ? null : input.field ?? null,
+      valueType: valueTypeOf(input),
       points,
     })
     return { displayed: true, points }
@@ -203,6 +285,24 @@ export async function runTool(name, input, fetchAll, blocks = []) {
       totalMatching: res.total_matching,
     })
     return { displayed: true, total_matching: res.total_matching, shown: res.rows.length }
+  }
+
+  if (name === 'show_grouped_table') {
+    if (blocks.length >= MAX_BLOCKS) throw new Error(`At most ${MAX_BLOCKS} visuals per answer.`)
+    const res = groupedSummary(data, { ...input, limit: clampLimit(input.limit ?? 10) })
+    if (!res.groups.length) throw new Error('The query returned no groups to show.')
+    const groupCol = String(input.group_label ?? input.group_by)
+    const columns = [groupCol, ...res.measures.map((m, i) => String(m.label ?? `measure ${i + 1}`))]
+    const formats = Object.fromEntries(res.measures.map((m, i) => [columns[i + 1], valueTypeOf(m)]))
+    blocks.push({
+      type: 'table',
+      title: String(input.title ?? ''),
+      columns,
+      formats,
+      rows: res.groups.map((g) => Object.fromEntries(columns.map((c, i) => [c, i === 0 ? g.group : g.values[i - 1]]))),
+      totalMatching: res.groups_total,
+    })
+    return { displayed: true, groups_total: res.groups_total, shown: res.groups.length }
   }
 
   throw new Error(`Unknown tool ${name}`)
@@ -224,6 +324,8 @@ Visuals (the user wants colorful charts and tables):
 - Whenever the answer is a ranking, a trend over time, a breakdown/share, a comparison, or a list of records, show it: call show_chart and/or show_table, then write a SHORT text with the key insight. Do not repeat every number in text; the visual carries them.
 - show_chart: "line" for trends over time (group_by a date field with bucket "month"), "bar" for rankings and comparisons, "pie" for shares of a whole with at most 6 slices (otherwise use bar). Always give a Hebrew title and value_label.
 - show_table: pick only 3-6 relevant fields, a sensible sort and a limit of about 10-15 rows. Put identifying fields first (SKU / name).
+- Ratios and percentages (e.g. gross margin %, "אחוז רווחיות") are computed with metric "ratio_pct": 100 * sum(Gross Profit) / sum(Revenue) on the Sales table, grouped by Customer / Item Name / Category etc. For "lowest" / "worst" rankings use sort_desc false.
+- When a ranking needs several numbers per group (e.g. "the 10 customers with the lowest margin % and their sales"), call BOTH show_chart (the ranking metric, e.g. margin % per customer) AND show_grouped_table (margin %, revenue, number of sales, per customer). Never tell the user you cannot build such a view: combine group_by + measures instead.
 - A single number or a yes/no question needs no visual. Use at most 2 visuals per answer unless asked for more.`
 }
 
