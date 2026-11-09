@@ -3,6 +3,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  LabelList,
   Legend,
   Line,
   LineChart,
@@ -14,7 +15,7 @@ import {
   YAxis,
 } from 'recharts'
 import type { ChartBlock, ChatBlock, TableBlock } from '../../services/chat'
-import { formatCurrency, formatCurrencyFull, formatNumber } from '../../logic/formatters'
+import { formatCurrencyFull, formatNumber } from '../../logic/formatters'
 
 // Same decorative palette as the dashboard's KPI cards / donut chart.
 const PALETTE = ['#3d8f8c', '#c9791f', '#7d3f9e', '#3f5fc4', '#c23f6b', '#64748b']
@@ -77,6 +78,7 @@ const STATUS_BADGES: Record<string, { label: string; cls: string }> = {
 
 const MONEY_FIELD = /(value|cost|revenue|price|profit)$/i
 const isMoneyField = (f: string | null) => !!f && MONEY_FIELD.test(f.trim())
+const isPercentField = (f: string | null) => !!f && f.includes('%')
 
 function formatCell(column: string, value: string | number | boolean | null): string {
   if (value === null || value === undefined || value === '') return '—'
@@ -85,11 +87,33 @@ function formatCell(column: string, value: string | number | boolean | null): st
   return String(value)
 }
 
+interface ChartFormat {
+  unit: string // caption shown under the title, '' when none
+  label: (v: number) => string // short label on the chart (bar top / point / axis)
+  full: (v: number) => string // tooltip / legend
+}
+
+// Money is shown in thousands of ₪ ("אלפי ₪") when the numbers are large; small money values stay in ₪.
+function chartFormat(block: ChartBlock): ChartFormat {
+  const max = Math.max(...block.points.map((p) => Math.abs(p.value)), 0)
+  if (isPercentField(block.field)) {
+    return { unit: 'באחוזים', label: (v) => `${formatNumber(Math.round(v * 10) / 10)}%`, full: (v) => `${formatNumber(Math.round(v * 10) / 10)}%` }
+  }
+  if (isMoneyField(block.field)) {
+    if (max >= 10_000) {
+      const k = (v: number) => formatNumber(Math.round(v / 1000))
+      return { unit: 'באלפי ₪', label: k, full: (v) => `${k(v)} אלפי ₪` }
+    }
+    return { unit: 'ב-₪', label: (v) => formatNumber(Math.round(v)), full: (v) => formatCurrencyFull(v) }
+  }
+  return { unit: '', label: (v) => formatNumber(Math.round(v * 10) / 10), full: (v) => formatNumber(Math.round(v * 10) / 10) }
+}
+
 function ChartView({ block }: { block: ChartBlock }) {
-  const money = isMoneyField(block.field)
-  const fmtAxis = (v: number) => (money ? formatCurrency(v) : formatNumber(v))
-  const fmtTip = (v: number) => (money ? formatCurrencyFull(v) : formatNumber(v))
+  const fmt = chartFormat(block)
   const name = block.valueLabel || 'ערך'
+  const total = block.points.reduce((s, p) => s + p.value, 0)
+  const pct = (v: number) => (total > 0 ? `${Math.round((v / total) * 100)}%` : '')
   const tooltipStyle = {
     direction: 'rtl' as const,
     borderRadius: 10,
@@ -97,31 +121,53 @@ function ChartView({ block }: { block: ChartBlock }) {
     fontSize: 13,
     boxShadow: '0 8px 24px -6px rgba(15,23,42,0.15)',
   }
+  const labelStyle = { fontSize: 10.5, fontWeight: 600, fill: '#475569' }
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-      <p className="mb-2 text-[13px] font-bold text-slate-800">{block.title}</p>
-      <ResponsiveContainer width="100%" height={260}>
+      <div className="mb-2 flex items-baseline justify-between gap-2">
+        <p className="text-[13px] font-bold text-slate-800">{block.title}</p>
+        {fmt.unit && <span className="shrink-0 text-[11px] font-medium text-slate-400">{fmt.unit}</span>}
+      </div>
+      <ResponsiveContainer width="100%" height={block.chartType === 'pie' ? 300 : 280}>
         {block.chartType === 'pie' ? (
           <PieChart>
-            <Pie data={block.points} dataKey="value" nameKey="label" innerRadius={50} outerRadius={90} paddingAngle={2}>
+            <Pie
+              data={block.points}
+              dataKey="value"
+              nameKey="label"
+              innerRadius={48}
+              outerRadius={88}
+              paddingAngle={2}
+              label={({ value }: { value: number }) => pct(value)}
+              labelLine={false}
+              style={{ fontSize: 12, fontWeight: 700 }}
+            >
               {block.points.map((_, i) => (
                 <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
               ))}
             </Pie>
-            <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [fmtTip(v), name]} />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${fmt.full(v)} (${pct(v)})`, name]} />
+            <Legend
+              wrapperStyle={{ fontSize: 12 }}
+              formatter={(value: string, entry) => {
+                const v = (entry.payload as { value?: number } | undefined)?.value
+                return v === undefined ? value : `${value} — ${fmt.label(v)} (${pct(v)})`
+              }}
+            />
           </PieChart>
         ) : block.chartType === 'line' ? (
-          <LineChart data={block.points} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+          <LineChart data={block.points} margin={{ top: 22, right: 16, bottom: 0, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" vertical={false} />
             <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={56} tickFormatter={fmtAxis} />
-            <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [fmtTip(v), name]} />
-            <Line type="monotone" dataKey="value" stroke={PALETTE[0]} strokeWidth={2.5} dot={{ r: 3, fill: PALETTE[0] }} />
+            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={48} tickFormatter={fmt.label} />
+            <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [fmt.full(v), name]} />
+            <Line type="monotone" dataKey="value" stroke={PALETTE[0]} strokeWidth={2.5} dot={{ r: 3.5, fill: PALETTE[0] }}>
+              <LabelList dataKey="value" position="top" offset={8} formatter={fmt.label} style={labelStyle} />
+            </Line>
           </LineChart>
         ) : (
-          <BarChart data={block.points} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+          <BarChart data={block.points} margin={{ top: 22, right: 8, bottom: 0, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" vertical={false} />
             <XAxis
               dataKey="label"
@@ -131,12 +177,13 @@ function ChartView({ block }: { block: ChartBlock }) {
               interval={0}
               tickFormatter={(l: string) => (l.length > 12 ? `${l.slice(0, 11)}…` : l)}
             />
-            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={56} tickFormatter={fmtAxis} />
-            <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f8fafc' }} formatter={(v: number) => [fmtTip(v), name]} />
+            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={48} tickFormatter={fmt.label} />
+            <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f8fafc' }} formatter={(v: number) => [fmt.full(v), name]} />
             <Bar dataKey="value" radius={[5, 5, 0, 0]} maxBarSize={44}>
               {block.points.map((_, i) => (
                 <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
               ))}
+              <LabelList dataKey="value" position="top" formatter={fmt.label} style={labelStyle} />
             </Bar>
           </BarChart>
         )}
